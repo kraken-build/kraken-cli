@@ -1,2 +1,2 @@
 def test_import():
-    exec("from kraken_cli import *")
+    exec("from kraken.cli import *")
