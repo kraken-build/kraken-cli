@@ -42,8 +42,10 @@ class RunCommand(Command):
 
         context = BuildContext(args.build_dir)
         context.load_project(args.file)
+        context.finalize()
         targets = context.resolve_tasks(args.targets or None)
         graph = BuildGraph(targets)
+        graph.trim()
         Executor(graph, args.verbose).execute()
 
 
