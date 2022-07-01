@@ -41,7 +41,7 @@ class RunCommand(Command):
             logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(name)s | %(message)s")
 
         context = BuildContext(args.build_dir)
-        context.load_project(args.file)
+        context.load_project(args.file, Path.cwd())
         context.finalize()
         targets = context.resolve_tasks(args.targets or None)
         graph = BuildGraph(targets)
