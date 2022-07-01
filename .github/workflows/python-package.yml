@@ -16,7 +16,6 @@ jobs:
     - uses: python-slap/slap.cli@gha/install/v1
     - uses: actions/setup-python@v2
       with: { python-version: "${{ matrix.python-version }}" }
-    - run: slap venv -ac && `venv -p`/bin/pip install git+https://github.com/kraken-build/kraken-core
     - run: slap install -vv --no-venv-check
     - run: slap test
 
