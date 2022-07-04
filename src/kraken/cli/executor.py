@@ -9,9 +9,9 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from kraken.core.actions import ActionResult
+from kraken.core.action import ActionResult
 from kraken.core.build_graph import BuildGraph
-from kraken.core.tasks import AnyTask, TaskCaptureMode
+from kraken.core.task import AnyTask, TaskCaptureMode
 from nr.util.process import replace_stdio  # type: ignore[attr-defined]
 from termcolor import colored
 
