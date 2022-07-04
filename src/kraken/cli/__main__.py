@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+
+# import profile
 import sys
 from pathlib import Path
 
@@ -12,9 +14,7 @@ from slap.core.cli import CliApp, Command
 from . import __version__
 
 
-class RunCommand(Command):
-    """run a kraken build"""
-
+class BaseCommand(Command):
     class Args:
         file: Path | None
         build_dir: Path
@@ -35,8 +35,6 @@ class RunCommand(Command):
         parser.add_argument("targets", metavar="target", nargs="*", help="one or more target to build")
 
     def execute(self, args: Args) -> int | None:
-        from .executor import Executor
-
         if args.verbose:
             logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(name)s | %(message)s")
 
@@ -45,6 +43,19 @@ class RunCommand(Command):
         context.finalize()
         targets = context.resolve_tasks(args.targets or None)
         graph = BuildGraph(targets)
+
+        return self.execute_with_graph(context, graph, args)
+
+    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: Args) -> int | None:
+        raise NotImplementedError
+
+
+class RunCommand(BaseCommand):
+    """run a kraken build"""
+
+    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BaseCommand.Args) -> int | None:
+        from .executor import Executor
+
         graph.trim()
         if not graph:
             print("error: no tasks selected", file=sys.stderr)
@@ -54,12 +65,33 @@ class RunCommand(Command):
         return None
 
 
-def _entrypoint() -> None:
+class LsCommand(BaseCommand):
+    """list targets in the build"""
+
+    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BaseCommand.Args) -> None:
+        for task in graph.execution_order():
+            print(task)
+
+
+def _main() -> None:
     from kraken import core
 
     app = CliApp("kraken", f"cli: {__version__}, core: {core.__version__}", features=[])
     app.add_command("run", RunCommand())
+    app.add_command("ls", LsCommand())
     sys.exit(app.run())
+
+
+def _entrypoint() -> None:
+    _main()
+    # prof = profile.Profile()
+    # try:
+    #     prof.runcall(_main)
+    # finally:
+    #     import pstats
+    #     stats = pstats.Stats(prof)
+    #     stats.sort_stats('cumulative')
+    #     stats.print_stats(.1)
 
 
 if __name__ == "__main__":

@@ -77,7 +77,7 @@ class ExecutionResult:
 def _execute_task_inner(task: AnyTask) -> tuple[ActionResult, str]:
     if not task.action:
         return ActionResult.SKIPPED, ""
-    result = task.action.execute()
+    result = task.action.get().execute()
     return result, ""
 
 
@@ -124,9 +124,9 @@ class Executor:
     def execute_task(self, task: AnyTask) -> bool:
         if not task.action:
             result = ExecutionResult(ActionResult.SKIPPED, None, "")
-        elif task.action.is_up_to_date():
+        elif task.action.get().is_up_to_date():
             result = ExecutionResult(ActionResult.UP_TO_DATE, None, "")
-        elif task.action.is_skippable():
+        elif task.action.get().is_skippable():
             result = ExecutionResult(ActionResult.SKIPPED, None, "")
         else:
             print(">", task.path)
