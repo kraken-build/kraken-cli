@@ -4,15 +4,17 @@ import contextlib
 import dataclasses
 import logging
 import os
+import sys
 import traceback
-from concurrent.futures import ProcessPoolExecutor
+
+# from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import IO, AnyStr, Iterator
 
 from kraken.core.action import ActionResult
 from kraken.core.build_graph import BuildGraph
 from kraken.core.task import AnyTask, TaskCaptureMode
-from nr.util.process import replace_stdio  # type: ignore[attr-defined]
 from termcolor import colored
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,39 @@ def get_terminal_width(default: int = 80) -> int:
     return terminal_width
 
 
+@contextlib.contextmanager
+def replace_stdio(
+    stdin: IO[AnyStr] | None = None,
+    stdout: IO[AnyStr] | None = None,
+    stderr: IO[AnyStr] | None = None,
+) -> Iterator[None]:
+    """Temporarily replaces the file handles of stdin/sdout/stderr."""
+
+    stdin_save: int | None = None
+    stdout_save: int | None = None
+    stderr_save: int | None = None
+
+    if stdin is not None:
+        stdin_save = os.dup(sys.stdin.fileno())
+        os.dup2(stdin.fileno(), sys.stdin.fileno())
+    if stdout is not None:
+        stdout_save = os.dup(sys.stdout.fileno())
+        os.dup2(stdout.fileno(), sys.stdout.fileno())
+    if stderr is not None:
+        stderr_save = os.dup(sys.stderr.fileno())
+        os.dup2(stderr.fileno(), sys.stderr.fileno())
+
+    try:
+        yield
+    finally:
+        if stdin_save is not None:
+            os.dup2(stdin_save, sys.stdin.fileno())
+        if stdout_save is not None:
+            os.dup2(stdout_save, sys.stdout.fileno())
+        if stderr_save is not None:
+            os.dup2(stderr_save, sys.stderr.fileno())
+
+
 @dataclasses.dataclass
 class ExecutionResult:
     status: ActionResult
@@ -47,11 +82,14 @@ def _execute_task_inner(task: AnyTask) -> tuple[ActionResult, str]:
 
 
 def _execute_task(task: AnyTask, capture: bool) -> ExecutionResult:
+    status = ActionResult.FAILED
+    message = "unknown error"
+    output = ""
     with contextlib.ExitStack() as exit_stack:
+        if capture:
+            fp = exit_stack.enter_context(NamedTemporaryFile(delete=False))
+            exit_stack.enter_context(replace_stdio(None, fp, fp))
         try:
-            if capture:
-                fp = exit_stack.enter_context(NamedTemporaryFile(delete=False))
-                replace_stdio(None, fp, fp)
             status, message = _execute_task_inner(task)
         except BaseException as exc:
             status, message = ActionResult.FAILED, f"unhandled exception: {exc}"
@@ -63,6 +101,8 @@ def _execute_task(task: AnyTask, capture: bool) -> ExecutionResult:
                 os.remove(fp.name)
             else:
                 output = ""
+    if not isinstance(status, ActionResult):
+        raise RuntimeError(f"{task}.action (= {task.action!r}) did not return ActionResult, got {status!r} instead")
     return ExecutionResult(status, message, output.rstrip())
 
 
@@ -78,7 +118,7 @@ class Executor:
         self.graph = graph
         self.verbose = verbose
         self.terminal_width = get_terminal_width()
-        self.pool = ProcessPoolExecutor()
+        # self.pool = ProcessPoolExecutor()
         self.longest_task_id = max(len(task.path) for task in self.graph.execution_order())
 
     def execute_task(self, task: AnyTask) -> bool:
@@ -92,7 +132,10 @@ class Executor:
             print(">", task.path)
             if task.capture in (TaskCaptureMode.FULL, TaskCaptureMode.SEMI):
                 # TODO (@NiklasRosenstein): Transfer values from output properties back to the main process.
-                result = self.pool.submit(_execute_task, task, True).result()
+                # TODO (@NiklasRosenstein): Until we actually start tasks in paralle, we don't benefit from
+                #       using a ProcessPoolExecutor.
+                # result = self.pool.submit(_execute_task, task, True).result()
+                result = _execute_task(task, True)
             else:
                 result = _execute_task(task, False)
 
@@ -115,7 +158,8 @@ class Executor:
 
     def execute(self) -> int:
         result = True
-        with self.pool:
+        # with self.pool:
+        if True:
             for task in self.graph.execution_order():
                 if not task.action:
                     continue

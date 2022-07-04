@@ -34,7 +34,7 @@ class RunCommand(Command):
         parser.add_argument("-v", "--verbose", action="store_true", help="always show task output and logs")
         parser.add_argument("targets", metavar="target", nargs="*", help="one or more target to build")
 
-    def execute(self, args: Args) -> None:
+    def execute(self, args: Args) -> int | None:
         from .executor import Executor
 
         if args.verbose:
@@ -46,7 +46,12 @@ class RunCommand(Command):
         targets = context.resolve_tasks(args.targets or None)
         graph = BuildGraph(targets)
         graph.trim()
+        if not graph:
+            print("error: no tasks selected", file=sys.stderr)
+            return 1
+
         Executor(graph, args.verbose).execute()
+        return None
 
 
 def _entrypoint() -> None:

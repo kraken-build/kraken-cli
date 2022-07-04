@@ -21,7 +21,6 @@ keywords = []
 
 [tool.poetry.dependencies]
 python = "^3.7"
-"nr.util" = "^0.8.12"
 "slap.core.cli" = "^0.3.1"
 kraken-core = "^0.1.0"
 termcolor = "^1.1.0"
