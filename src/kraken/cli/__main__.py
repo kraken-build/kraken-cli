@@ -9,6 +9,7 @@ from pathlib import Path
 
 from kraken.core.build_context import BuildContext
 from kraken.core.build_graph import BuildGraph
+from kraken.core.task import Task
 from slap.core.cli import CliApp, Command
 
 from . import __version__
@@ -34,6 +35,9 @@ class BaseCommand(Command):
         parser.add_argument("-v", "--verbose", action="store_true", help="always show task output and logs")
         parser.add_argument("targets", metavar="target", nargs="*", help="one or more target to build")
 
+    def resolve_tasks(self, args: Args, context: BuildContext) -> list[Task]:
+        return context.resolve_tasks(args.targets or None)
+
     def execute(self, args: Args) -> int | None:
         if args.verbose:
             logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(name)s | %(message)s")
@@ -41,7 +45,7 @@ class BaseCommand(Command):
         context = BuildContext(args.build_dir)
         context.load_project(args.file, Path.cwd())
         context.finalize()
-        targets = context.resolve_tasks(args.targets or None)
+        targets = self.resolve_tasks(args, context)
         graph = BuildGraph(targets)
 
         return self.execute_with_graph(context, graph, args)
@@ -67,6 +71,21 @@ class RunCommand(BaseCommand):
 
 class LsCommand(BaseCommand):
     """list targets in the build"""
+
+    class Args(BaseCommand.Args):
+        all: bool
+
+    def init_parser(self, parser: argparse.ArgumentParser) -> None:
+        super().init_parser(parser)
+        parser.add_argument("-a", "--all", action="store_true")
+
+    def resolve_tasks(self, args: Args, context: BuildContext) -> list[Task]:  # type: ignore
+        if args.all:
+            tasks: list[Task] = []
+            for project in context.iter_projects():
+                tasks += project.tasks().values()
+            return tasks
+        return super().resolve_tasks(args, context)
 
     def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BaseCommand.Args) -> None:
         for task in graph.execution_order():
