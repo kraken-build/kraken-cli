@@ -12,9 +12,8 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import IO, AnyStr, Iterator
 
-from kraken.core.action import ActionResult
 from kraken.core.build_graph import BuildGraph
-from kraken.core.task import AnyTask, TaskCaptureMode
+from kraken.core.task import Task, TaskResult
 from termcolor import colored
 
 logger = logging.getLogger(__name__)
@@ -69,20 +68,13 @@ def replace_stdio(
 
 @dataclasses.dataclass
 class ExecutionResult:
-    status: ActionResult
+    status: TaskResult
     message: str | None
     output: str
 
 
-def _execute_task_inner(task: AnyTask) -> tuple[ActionResult, str]:
-    if not task.action:
-        return ActionResult.SKIPPED, ""
-    result = task.action.get().execute()
-    return result, ""
-
-
-def _execute_task(task: AnyTask, capture: bool) -> ExecutionResult:
-    status = ActionResult.FAILED
+def _execute_task(task: Task, capture: bool) -> ExecutionResult:
+    status = TaskResult.FAILED
     message = "unknown error"
     output = ""
     with contextlib.ExitStack() as exit_stack:
@@ -90,9 +82,10 @@ def _execute_task(task: AnyTask, capture: bool) -> ExecutionResult:
             fp = exit_stack.enter_context(NamedTemporaryFile(delete=False))
             exit_stack.enter_context(replace_stdio(None, fp, fp))
         try:
-            status, message = _execute_task_inner(task)
+            status = task.execute()
+            message = ""
         except BaseException as exc:
-            status, message = ActionResult.FAILED, f"unhandled exception: {exc}"
+            status, message = TaskResult.FAILED, f"unhandled exception: {exc}"
             traceback.print_exc()
         finally:
             if capture:
@@ -101,17 +94,17 @@ def _execute_task(task: AnyTask, capture: bool) -> ExecutionResult:
                 os.remove(fp.name)
             else:
                 output = ""
-    if not isinstance(status, ActionResult):
-        raise RuntimeError(f"{task}.action (= {task.action!r}) did not return ActionResult, got {status!r} instead")
+    if not isinstance(status, TaskResult):
+        raise RuntimeError(f"{task} did not return TaskResult, got {status!r} instead")
     return ExecutionResult(status, message, output.rstrip())
 
 
 class Executor:
     COLORS_BY_STATUS = {
-        ActionResult.FAILED: "red",
-        ActionResult.SKIPPED: "yellow",
-        ActionResult.SUCCEEDED: "green",
-        ActionResult.UP_TO_DATE: "green",
+        TaskResult.FAILED: "red",
+        TaskResult.SKIPPED: "yellow",
+        TaskResult.SUCCEEDED: "green",
+        TaskResult.UP_TO_DATE: "green",
     }
 
     def __init__(self, graph: BuildGraph, verbose: bool = False) -> None:
@@ -119,29 +112,22 @@ class Executor:
         self.verbose = verbose
         self.terminal_width = get_terminal_width()
         # self.pool = ProcessPoolExecutor()
-        self.longest_task_id = max(len(task.path) for task in self.graph.execution_order())
+        self.longest_task_id = max(len(task.path) for task in self.graph.tasks())
 
-    def execute_task(self, task: AnyTask) -> bool:
-        if not task.action:
-            result = ExecutionResult(ActionResult.SKIPPED, None, "")
-        elif task.action.get().is_up_to_date():
-            result = ExecutionResult(ActionResult.UP_TO_DATE, None, "")
-        elif task.action.get().is_skippable():
-            result = ExecutionResult(ActionResult.SKIPPED, None, "")
+    def execute_task(self, task: Task) -> bool:
+        if task.is_up_to_date():
+            result = ExecutionResult(TaskResult.UP_TO_DATE, None, "")
+        elif task.is_skippable():
+            result = ExecutionResult(TaskResult.SKIPPED, None, "")
         else:
             print(">", task.path)
-            if task.capture in (TaskCaptureMode.FULL, TaskCaptureMode.SEMI):
-                # TODO (@NiklasRosenstein): Transfer values from output properties back to the main process.
-                # TODO (@NiklasRosenstein): Until we actually start tasks in paralle, we don't benefit from
-                #       using a ProcessPoolExecutor.
-                # result = self.pool.submit(_execute_task, task, True).result()
-                result = _execute_task(task, True)
-            else:
-                result = _execute_task(task, False)
+            # TODO (@NiklasRosenstein): Transfer values from output properties back to the main process.
+            # TODO (@NiklasRosenstein): Until we actually start tasks in paralle, we don't benefit from
+            #       using a ProcessPoolExecutor.
+            # result = self.pool.submit(_execute_task, task, True).result()
+            result = _execute_task(task, task.capture)
 
-        if (
-            result.status == ActionResult.FAILED or task.capture == TaskCaptureMode.SEMI or self.verbose
-        ) and result.output:
+        if (result.status == TaskResult.FAILED or task.capture) and result.output:
             print(result.output)
 
         print(
@@ -154,15 +140,13 @@ class Executor:
             print(f" ({result.message})", end="")
         print()
 
-        return result.status != ActionResult.FAILED
+        return result.status != TaskResult.FAILED
 
     def execute(self) -> int:
         result = True
         # with self.pool:
         if True:
             for task in self.graph.execution_order():
-                if not task.action:
-                    continue
                 result = self.execute_task(task)
                 if not result:
                     break
