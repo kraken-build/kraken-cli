@@ -127,7 +127,7 @@ class Executor:
             # result = self.pool.submit(_execute_task, task, True).result()
             result = _execute_task(task, task.capture)
 
-        if (result.status == TaskResult.FAILED or task.capture) and result.output:
+        if (result.status == TaskResult.FAILED or not task.capture) and result.output:
             print(result.output)
 
         print(
