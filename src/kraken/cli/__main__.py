@@ -57,7 +57,14 @@ class BaseCommand(Command):
 class RunCommand(BaseCommand):
     """run a kraken build"""
 
-    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BaseCommand.Args) -> int | None:
+    class Args(BaseCommand.Args):
+        skip_build: bool
+
+    def init_parser(self, parser: argparse.ArgumentParser) -> None:
+        super().init_parser(parser)
+        parser.add_argument("-s", "--skip-build", action="store_true", help="just load the project, do not build")
+
+    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: Args) -> int | None:  # type: ignore
         from .executor import Executor
 
         graph.trim()
@@ -65,7 +72,8 @@ class RunCommand(BaseCommand):
             print("error: no tasks selected", file=sys.stderr)
             return 1
 
-        Executor(graph, args.verbose).execute()
+        if not args.skip_build:
+            Executor(graph, args.verbose).execute()
         return None
 
 

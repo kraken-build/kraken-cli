@@ -3,3 +3,9 @@ id = "c04626bc-d7db-4508-965f-a0b67f9577d9"
 type = "fix"
 description = "show task output on -v option"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "71613a3c-bea2-4c87-80fd-4182a37c8d99"
+type = "feature"
+description = "add `-s,--skip-build` option to `kraken run`"
+author = "@NiklasRosenstein"
