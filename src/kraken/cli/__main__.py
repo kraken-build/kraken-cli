@@ -106,12 +106,70 @@ class LsCommand(BaseCommand):
             print(task)
 
 
+class QueryCommand(BaseCommand):
+    class Args(BaseCommand.Args):
+        is_up_to_date: bool
+        legend: bool
+
+    def init_parser(self, parser: argparse.ArgumentParser) -> None:
+        super().init_parser(parser)
+        parser.add_argument("--legend", action="store_true", help="print out a legend along with the query result")
+        parser.add_argument("--is-up-to-date", action="store_true", help="query if the selected task(s) are up to date")
+
+    def execute(self, args: BaseCommand.Args) -> int | None:
+        args.quiet = True
+        return super().execute(args)
+
+    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: Args) -> int | None:  # type: ignore
+        from .executor import Executor, TaskStatus, get_task_status
+
+        if args.is_up_to_date:
+            tasks = list(graph.tasks(required_only=True))
+            print(f"querying status of {len(tasks)} task(s)")
+            print()
+
+            need_to_run = 0
+            up_to_date = 0
+            for task in graph.execution_order():
+                if task not in tasks:
+                    continue
+                status = get_task_status(task)
+                print(" ", task.path, colored(status.name, Executor.COLORS_BY_STATUS[status]))
+                if status in (TaskStatus.SKIPPABLE, TaskStatus.UP_TO_DATE):
+                    up_to_date += 1
+                else:
+                    need_to_run += 1
+
+            print()
+            print(colored(f"{up_to_date} task(s) are up to date, need to run {need_to_run} task(s)", attrs=["bold"]))
+
+            if args.legend:
+                print()
+                print("legend:")
+                help_text = {
+                    TaskStatus.SKIPPABLE: "the task reports that it can and will be skipped",
+                    TaskStatus.UP_TO_DATE: "the task reports that it is up to date",
+                    TaskStatus.OUTDATED: "the task reports that it is outdated",
+                    TaskStatus.QUEUED: "the task needs to run always or it cannot determine its up to date status",
+                }
+                for status in TaskStatus:
+                    print(colored(status.name.rjust(12), Executor.COLORS_BY_STATUS[status]) + ":", help_text[status])
+
+            exit_code = 0 if need_to_run == 0 else 1
+            print()
+            print("exit code:", exit_code)
+            sys.exit(exit_code)
+        else:
+            self.get_parser().error("missing query")
+
+
 def _main() -> None:
     from kraken import core
 
     app = CliApp("kraken", f"cli: {__version__}, core: {core.__version__}", features=[])
     app.add_command("run", RunCommand())
     app.add_command("ls", LsCommand())
+    app.add_command("query", QueryCommand())
     sys.exit(app.run())
 
 

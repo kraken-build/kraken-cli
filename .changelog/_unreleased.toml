@@ -9,3 +9,9 @@ id = "4084c216-58b2-4bfa-9dfa-4a1d4464f8c2"
 type = "feature"
 description = "add `-q,--quiet` flag to Kraken commands"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "13f6e35b-5027-433a-be97-5686b7ed1c5b"
+type = "feature"
+description = "add `kraken query` command"
+author = "@NiklasRosenstein"
