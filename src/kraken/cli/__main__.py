@@ -21,6 +21,7 @@ class BaseCommand(Command):
         file: Path | None
         build_dir: Path
         verbose: bool
+        quiet: bool
         targets: list[str]
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
@@ -34,6 +35,7 @@ class BaseCommand(Command):
             help="the build directory to write to [default: %(default)s]",
         )
         parser.add_argument("-v", "--verbose", action="store_true", help="always show task output and logs")
+        parser.add_argument("-q", "--quiet", action="store_true", help="show less logs")
         parser.add_argument("targets", metavar="target", nargs="*", help="one or more target to build")
 
     def resolve_tasks(self, args: Args, context: BuildContext) -> list[Task]:
@@ -41,7 +43,7 @@ class BaseCommand(Command):
 
     def execute(self, args: Args) -> int | None:
         logging.basicConfig(
-            level=logging.INFO if args.verbose else logging.WARNING,
+            level=logging.INFO if args.verbose else logging.ERROR if args.quiet else logging.WARNING,
             format=f"{colored('%(levelname)7s', 'magenta')} | {colored('%(name)s', 'blue')} | "
             f"{colored('%(message)s', 'cyan')}",
         )

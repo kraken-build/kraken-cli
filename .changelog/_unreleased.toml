@@ -3,3 +3,9 @@ id = "4fddaa0d-7e32-486e-a886-22098cdec886"
 type = "improvement"
 description = "color-format logging"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "4084c216-58b2-4bfa-9dfa-4a1d4464f8c2"
+type = "feature"
+description = "add `-q,--quiet` flag to Kraken commands"
+author = "@NiklasRosenstein"
