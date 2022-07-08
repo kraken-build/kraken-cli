@@ -11,6 +11,7 @@ from kraken.core.build_context import BuildContext
 from kraken.core.build_graph import BuildGraph
 from kraken.core.task import Task
 from slap.core.cli import CliApp, Command
+from termcolor import colored
 
 from . import __version__
 
@@ -39,8 +40,11 @@ class BaseCommand(Command):
         return context.resolve_tasks(args.targets or None)
 
     def execute(self, args: Args) -> int | None:
-        if args.verbose:
-            logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(name)s | %(message)s")
+        logging.basicConfig(
+            level=logging.INFO if args.verbose else logging.WARNING,
+            format=f"{colored('%(levelname)7s', 'magenta')} | {colored('%(name)s', 'blue')} | "
+            f"{colored('%(message)s', 'cyan')}",
+        )
 
         context = BuildContext(args.build_dir)
         context.load_project(args.file, Path.cwd())
