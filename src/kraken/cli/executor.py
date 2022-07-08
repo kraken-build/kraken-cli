@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import enum
 import logging
 import os
 import sys
@@ -66,11 +67,33 @@ def replace_stdio(
             os.dup2(stderr_save, sys.stderr.fileno())
 
 
+class TaskStatus(enum.Enum):
+    SKIPPABLE = enum.auto()  #: The task can be skipped.
+    UP_TO_DATE = enum.auto()  #: The task is up to date.
+    OUTDATED = enum.auto()  #: The task is outdated.
+    QUEUED = enum.auto()  #: The task needs to run, never checks if it is up to date.
+
+
 @dataclasses.dataclass
 class ExecutionResult:
     status: TaskResult
     message: str | None
     output: str
+
+
+def get_task_status(task: Task) -> TaskStatus:
+    try:
+        if task.is_skippable():
+            return TaskStatus.SKIPPABLE
+    except NotImplementedError:
+        pass
+    try:
+        if task.is_up_to_date():
+            return TaskStatus.UP_TO_DATE
+        else:
+            return TaskStatus.OUTDATED
+    except NotImplementedError:
+        return TaskStatus.QUEUED
 
 
 def _execute_task(task: Task, capture: bool) -> ExecutionResult:
@@ -100,11 +123,17 @@ def _execute_task(task: Task, capture: bool) -> ExecutionResult:
 
 
 class Executor:
-    COLORS_BY_STATUS = {
+    COLORS_BY_RESULT = {
         TaskResult.FAILED: "red",
         TaskResult.SKIPPED: "yellow",
         TaskResult.SUCCEEDED: "green",
         TaskResult.UP_TO_DATE: "green",
+    }
+    COLORS_BY_STATUS = {
+        TaskStatus.SKIPPABLE: "yellow",
+        TaskStatus.UP_TO_DATE: "green",
+        TaskStatus.OUTDATED: "red",
+        TaskStatus.QUEUED: "magenta",
     }
 
     def __init__(self, graph: BuildGraph, verbose: bool = False) -> None:
@@ -115,30 +144,31 @@ class Executor:
         self.longest_task_id = max(len(task.path) for task in self.graph.tasks())
 
     def execute_task(self, task: Task) -> bool:
-        if task.is_up_to_date():
-            result = ExecutionResult(TaskResult.UP_TO_DATE, None, "")
-        elif task.is_skippable():
+        status = get_task_status(task)
+        print(">", task.path, colored(status.name, self.COLORS_BY_STATUS[status]))
+        if status == TaskStatus.SKIPPABLE:
             result = ExecutionResult(TaskResult.SKIPPED, None, "")
+        elif status == TaskStatus.UP_TO_DATE:
+            result = ExecutionResult(TaskResult.UP_TO_DATE, None, "")
         else:
-            print(">", task.path)
             # TODO (@NiklasRosenstein): Transfer values from output properties back to the main process.
             # TODO (@NiklasRosenstein): Until we actually start tasks in paralle, we don't benefit from
             #       using a ProcessPoolExecutor.
             # result = self.pool.submit(_execute_task, task, True).result()
             result = _execute_task(task, task.capture)
 
-        if (result.status == TaskResult.FAILED or not task.capture or self.verbose) and result.output:
-            print(result.output)
+            if (result.status == TaskResult.FAILED or not task.capture or self.verbose) and result.output:
+                print(result.output)
 
-        print(
-            ">",
-            task.path,
-            colored(result.status.name, self.COLORS_BY_STATUS[result.status], attrs=["bold"]),
-            end="",
-        )
-        if result.message:
-            print(f" ({result.message})", end="")
-        print()
+            print(
+                "<",
+                task.path,
+                colored(result.status.name, self.COLORS_BY_RESULT[result.status], attrs=["bold"]),
+                end="",
+            )
+            if result.message:
+                print(f" ({result.message})", end="")
+            print()
 
         return result.status != TaskResult.FAILED
 
