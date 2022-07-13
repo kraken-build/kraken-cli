@@ -79,7 +79,7 @@ class RunCommand(BaseCommand):
             return 1
 
         if not args.skip_build:
-            Executor(graph, args.verbose).execute()
+            return Executor(graph, args.verbose).execute()
         return None
 
 

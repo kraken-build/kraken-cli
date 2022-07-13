@@ -1,0 +1,5 @@
+[[entries]]
+id = "0610ade8-e9f5-4e68-a1bf-9377aaaf99c5"
+type = "fix"
+description = "fix returning non-zero exit code from `kraken run` command on build failure"
+author = "@NiklasRosenstein"
