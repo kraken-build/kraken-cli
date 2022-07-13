@@ -3,3 +3,9 @@ id = "2f120a8c-8372-436c-9a5d-de78c904a68a"
 type = "improvement"
 description = "update `kraken ls` command to print all tasks by default and print in a tabular format, add `kraken query --describe` option"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "9450c47a-3722-4419-a100-f52880e0d4be"
+type = "feature"
+description = "add aliases for default tasks named \"fmt\", \"lint\", \"build\" and \"test\""
+author = "@NiklasRosenstein"

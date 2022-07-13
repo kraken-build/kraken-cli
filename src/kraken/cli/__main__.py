@@ -63,14 +63,28 @@ class BaseCommand(Command):
 
 
 class RunCommand(BaseCommand):
-    """run a kraken build"""
-
     class Args(BaseCommand.Args):
         skip_build: bool
+
+    def __init__(self, main_target: str | None = None) -> None:
+        super().__init__()
+        self._main_target = main_target
+
+    def get_description(self) -> str:
+        if self._main_target:
+            return f'execute "{self._main_target}" tasks'
+        else:
+            return "execute one or more kraken tasks"
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
         parser.add_argument("-s", "--skip-build", action="store_true", help="just load the project, do not build")
+
+    def resolve_tasks(self, args: BaseCommand.Args, context: BuildContext) -> list[Task]:
+        if self._main_target:
+            targets = [self._main_target] + list(args.targets or [])
+            return context.resolve_tasks(targets)
+        return super().resolve_tasks(args, context)
 
     def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: Args) -> int | None:  # type: ignore
         from .executor import Executor
@@ -132,6 +146,8 @@ class LsCommand(BaseCommand):
 
 
 class QueryCommand(BaseCommand):
+    """perform queries on the build graph"""
+
     class Args(BaseCommand.Args):
         is_up_to_date: bool
         legend: bool
@@ -221,6 +237,10 @@ def _main() -> None:
 
     app = CliApp("kraken", f"cli: {__version__}, core: {core.__version__}", features=[])
     app.add_command("run", RunCommand())
+    app.add_command("fmt", RunCommand("fmt"))
+    app.add_command("lint", RunCommand("lint"))
+    app.add_command("build", RunCommand("build"))
+    app.add_command("test", RunCommand("test"))
     app.add_command("ls", LsCommand())
     app.add_command("query", QueryCommand())
     sys.exit(app.run())
