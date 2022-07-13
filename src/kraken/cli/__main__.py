@@ -6,9 +6,11 @@ import logging
 # import profile
 import sys
 from pathlib import Path
+from typing import Any
 
 from kraken.core.build_context import BuildContext
 from kraken.core.build_graph import BuildGraph
+from kraken.core.property import Property
 from kraken.core.task import Task
 from slap.core.cli import CliApp, Command
 from termcolor import colored
@@ -87,34 +89,59 @@ class LsCommand(BaseCommand):
     """list targets in the build"""
 
     class Args(BaseCommand.Args):
+        default: bool
         all: bool
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
-        parser.add_argument("-a", "--all", action="store_true")
+        parser.add_argument(
+            "-d",
+            "--default",
+            action="store_true",
+            help="trim non-default tasks (only without selected targets)",
+        )
 
     def resolve_tasks(self, args: Args, context: BuildContext) -> list[Task]:  # type: ignore
-        if args.all:
-            tasks: list[Task] = []
+        tasks: list[Task] = []
+        if args.default:
+            if args.targets:
+                self.get_parser().error("cannot combine -d,--default with target selection")
             for project in context.iter_projects():
-                tasks += project.tasks().values()
+                for task in project.tasks().values():
+                    if task.default:
+                        tasks.append(task)
             return tasks
-        return super().resolve_tasks(args, context)
+        if args.targets:
+            return context.resolve_tasks(args.targets)
+        for project in context.iter_projects():
+            tasks += project.tasks().values()
+        return tasks
 
     def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BaseCommand.Args) -> None:
+        if len(graph) == 0:
+            print("no tasks.", file=sys.stderr)
+            sys.exit(1)
+
+        print(colored("D " + "Task".ljust(33) + "Type", attrs=["bold"]))
         for task in graph.execution_order():
-            print(task)
+            print(
+                colored("●", "cyan" if task.default else "grey"),
+                task.path.ljust(32),
+                type(task).__module__ + "." + type(task).__name__,
+            )
 
 
 class QueryCommand(BaseCommand):
     class Args(BaseCommand.Args):
         is_up_to_date: bool
         legend: bool
+        describe: bool
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
         parser.add_argument("--legend", action="store_true", help="print out a legend along with the query result")
         parser.add_argument("--is-up-to-date", action="store_true", help="query if the selected task(s) are up to date")
+        parser.add_argument("--describe", action="store_true", help="describe the task(s)")
 
     def execute(self, args: BaseCommand.Args) -> int | None:
         args.quiet = True
@@ -159,6 +186,32 @@ class QueryCommand(BaseCommand):
             print()
             print("exit code:", exit_code)
             sys.exit(exit_code)
+
+        elif args.describe:
+            tasks = list(graph.tasks(required_only=True))
+            print("selected", len(tasks), "task(s)")
+            print()
+
+            for task in tasks:
+                print("Task", colored(task.path, attrs=["bold", "underline"]))
+                print("  Type".ljust(30), type(task).__module__ + "." + type(task).__name__)
+                print("  File".ljust(30), colored(sys.modules[type(task).__module__].__file__, "cyan"))
+                print("  Default".ljust(30), task.default)
+                print("  Capture".ljust(30), task.capture)
+                rels = list(task.get_relationships())
+                print("  Relationships".ljust(30), len(rels))
+                for rel in rels:
+                    print(
+                        "".ljust(4),
+                        colored(rel.other_task.path, attrs=["bold"]),
+                        f"before={rel.before}, strict={rel.strict}",
+                    )
+                print("  Properties".ljust(30), len(type(task).__schema__))
+                for key in type(task).__schema__:
+                    prop: Property[Any] = getattr(task, key)
+                    print("".ljust(4), colored(key, attrs=["reverse"]), f'= {colored(prop.get_or("<unset>"), "blue")}')
+                print()
+
         else:
             self.get_parser().error("missing query")
 

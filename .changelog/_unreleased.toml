@@ -1,0 +1,5 @@
+[[entries]]
+id = "2f120a8c-8372-436c-9a5d-de78c904a68a"
+type = "improvement"
+description = "update `kraken ls` command to print all tasks by default and print in a tabular format, add `kraken query --describe` option"
+author = "@NiklasRosenstein"
