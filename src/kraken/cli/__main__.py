@@ -195,7 +195,7 @@ class QueryCommand(BaseCommand):
             for task in tasks:
                 print("Task", colored(task.path, attrs=["bold", "underline"]))
                 print("  Type".ljust(30), type(task).__module__ + "." + type(task).__name__)
-                print("  File".ljust(30), colored(sys.modules[type(task).__module__].__file__, "cyan"))
+                print("  File".ljust(30), colored(sys.modules[type(task).__module__].__file__ or "???", "cyan"))
                 print("  Default".ljust(30), task.default)
                 print("  Capture".ljust(30), task.capture)
                 rels = list(task.get_relationships())
