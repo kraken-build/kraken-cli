@@ -155,7 +155,7 @@ class Executor:
             # TODO (@NiklasRosenstein): Until we actually start tasks in paralle, we don't benefit from
             #       using a ProcessPoolExecutor.
             # result = self.pool.submit(_execute_task, task, True).result()
-            result = _execute_task(task, task.capture)
+            result = _execute_task(task, task.capture and not self.verbose)
 
             if (result.status == TaskResult.FAILED or not task.capture or self.verbose) and result.output:
                 print(result.output)

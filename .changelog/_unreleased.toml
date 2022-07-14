@@ -1,0 +1,5 @@
+[[entries]]
+id = "5a7d876f-fc74-46e1-8d08-14f1d6df333a"
+type = "improvement"
+description = "using -v,--verbose no longer captures any output"
+author = "@NiklasRosenstein"
