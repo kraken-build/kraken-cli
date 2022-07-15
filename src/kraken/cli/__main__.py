@@ -15,19 +15,22 @@ from kraken.core.task import Task
 from slap.core.cli import CliApp, Command
 from termcolor import colored
 
+from kraken.cli.locking.environment import EnvironmentManager
+from kraken.cli.locking.project import DefaultProjectImpl
+
 from . import __version__
 
 
-class BaseCommand(Command):
+class BuildAwareCommand(Command):
+    """Base class for commands that are aware of a build directory and the environment manager."""
+
     class Args:
-        file: Path | None
         build_dir: Path
-        verbose: bool
-        quiet: bool
-        targets: list[str]
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("-f", "--file", metavar="PATH", type=Path, help="the kraken build script to load")
+        super().init_parser(parser)
+        parser.add_argument("-v", "--verbose", action="store_true", help="always show task output and logs")
+        parser.add_argument("-q", "--quiet", action="store_true", help="show less logs")
         parser.add_argument(
             "-b",
             "--build-dir",
@@ -36,22 +39,44 @@ class BaseCommand(Command):
             default=Path(".build"),
             help="the build directory to write to [default: %(default)s]",
         )
-        parser.add_argument("-v", "--verbose", action="store_true", help="always show task output and logs")
-        parser.add_argument("-q", "--quiet", action="store_true", help="show less logs")
+
+    def get_environment_manager(self, args: Args) -> EnvironmentManager:
+        return EnvironmentManager(args.build_dir / "buildenv", DefaultProjectImpl(Path.cwd()))
+
+    def execute(self, args: Any) -> int | None:
+        logging.basicConfig(
+            level=logging.INFO if args.verbose else logging.ERROR if args.quiet else logging.WARNING,
+            format=f"{colored('%(levelname)7s', 'magenta')} | {colored('%(name)s', 'blue')} | "
+            f"{colored('%(message)s', 'cyan')}",
+        )
+        return None
+
+
+class BuildGraphCommand(BuildAwareCommand):
+    """Base class for commands that require the fully materialized Kraken build graph."""
+
+    class Args(BuildAwareCommand.Args):
+        file: Path | None
+        verbose: bool
+        quiet: bool
+        targets: list[str]
+
+    def init_parser(self, parser: argparse.ArgumentParser) -> None:
+        super().init_parser(parser)
         parser.add_argument("targets", metavar="target", nargs="*", help="one or more target to build")
 
     def resolve_tasks(self, args: Args, context: BuildContext) -> list[Task]:
         return context.resolve_tasks(args.targets or None)
 
     def execute(self, args: Args) -> int | None:
-        logging.basicConfig(
-            level=logging.INFO if args.verbose else logging.ERROR if args.quiet else logging.WARNING,
-            format=f"{colored('%(levelname)7s', 'magenta')} | {colored('%(name)s', 'blue')} | "
-            f"{colored('%(message)s', 'cyan')}",
-        )
+        super().execute(args)
+        manager = self.get_environment_manager(args)
+        if not manager.are_we_in():
+            manager.install()
+            return manager.dispatch(sys.argv[1:])
 
         context = BuildContext(args.build_dir)
-        context.load_project(args.file, Path.cwd())
+        context.load_project(None, Path.cwd())
         context.finalize()
         targets = self.resolve_tasks(args, context)
         graph = BuildGraph(targets)
@@ -62,8 +87,8 @@ class BaseCommand(Command):
         raise NotImplementedError
 
 
-class RunCommand(BaseCommand):
-    class Args(BaseCommand.Args):
+class RunCommand(BuildGraphCommand):
+    class Args(BuildGraphCommand.Args):
         skip_build: bool
 
     def __init__(self, main_target: str | None = None) -> None:
@@ -80,7 +105,7 @@ class RunCommand(BaseCommand):
         super().init_parser(parser)
         parser.add_argument("-s", "--skip-build", action="store_true", help="just load the project, do not build")
 
-    def resolve_tasks(self, args: BaseCommand.Args, context: BuildContext) -> list[Task]:
+    def resolve_tasks(self, args: BuildGraphCommand.Args, context: BuildContext) -> list[Task]:
         if self._main_target:
             targets = [self._main_target] + list(args.targets or [])
             return context.resolve_tasks(targets)
@@ -99,10 +124,10 @@ class RunCommand(BaseCommand):
         return None
 
 
-class LsCommand(BaseCommand):
+class LsCommand(BuildGraphCommand):
     """list targets in the build"""
 
-    class Args(BaseCommand.Args):
+    class Args(BuildGraphCommand.Args):
         default: bool
         all: bool
 
@@ -131,7 +156,7 @@ class LsCommand(BaseCommand):
             tasks += project.tasks().values()
         return tasks
 
-    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BaseCommand.Args) -> None:
+    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BuildGraphCommand.Args) -> None:
         if len(graph) == 0:
             print("no tasks.", file=sys.stderr)
             sys.exit(1)
@@ -145,10 +170,10 @@ class LsCommand(BaseCommand):
             )
 
 
-class QueryCommand(BaseCommand):
+class QueryCommand(BuildGraphCommand):
     """perform queries on the build graph"""
 
-    class Args(BaseCommand.Args):
+    class Args(BuildGraphCommand.Args):
         is_up_to_date: bool
         legend: bool
         describe: bool
@@ -159,7 +184,7 @@ class QueryCommand(BaseCommand):
         parser.add_argument("--is-up-to-date", action="store_true", help="query if the selected task(s) are up to date")
         parser.add_argument("--describe", action="store_true", help="describe the task(s)")
 
-    def execute(self, args: BaseCommand.Args) -> int | None:
+    def execute(self, args: BuildGraphCommand.Args) -> int | None:
         args.quiet = True
         return super().execute(args)
 
@@ -232,6 +257,26 @@ class QueryCommand(BaseCommand):
             self.get_parser().error("missing query")
 
 
+class LockCommand(BuildAwareCommand):
+    """lock dependencies of your build script in place to ensure repeatable builds"""
+
+    class Args(BuildAwareCommand.Args):
+        update: bool
+
+    def init_parser(self, parser: argparse.ArgumentParser) -> None:
+        super().init_parser(parser)
+        parser.add_argument("-u", "--update", action="store_true", help="update the environment before locking")
+
+    def execute(self, args: Args) -> int | None:
+        super().execute(args)
+        manager = self.get_environment_manager(args)
+        if manager.are_we_in():
+            self.get_parser().error("cannot lock from inside build environment")
+        manager.install(args.update)
+        manager.lock()
+        return None
+
+
 def _main() -> None:
     from kraken import core
 
@@ -243,6 +288,7 @@ def _main() -> None:
     app.add_command("test", RunCommand("test"))
     app.add_command("ls", LsCommand())
     app.add_command("query", QueryCommand())
+    app.add_command("lock", LockCommand())
     sys.exit(app.run())
 
 
