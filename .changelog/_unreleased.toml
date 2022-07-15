@@ -3,3 +3,9 @@ id = "5a7d876f-fc74-46e1-8d08-14f1d6df333a"
 type = "improvement"
 description = "using -v,--verbose no longer captures any output"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "d2404c29-9a4b-4971-b358-ba79c83d0bd7"
+type = "feature"
+description = "the kraken CLI now manages a build environment from requirements specified in your build script or a separate requirements file and can generate a lock file"
+author = "@NiklasRosenstein"

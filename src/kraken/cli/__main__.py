@@ -20,6 +20,8 @@ from kraken.cli.locking.project import DefaultProjectImpl
 
 from . import __version__
 
+logger = logging.getLogger(__name__)
+
 
 class BuildAwareCommand(Command):
     """Base class for commands that are aware of a build directory and the environment manager."""
@@ -72,7 +74,8 @@ class BuildGraphCommand(BuildAwareCommand):
         super().execute(args)
         manager = self.get_environment_manager(args)
         if not manager.are_we_in():
-            manager.install()
+            if manager.check_outdated():
+                manager.install()
             return manager.dispatch(sys.argv[1:])
 
         context = BuildContext(args.build_dir)
@@ -257,24 +260,65 @@ class QueryCommand(BuildGraphCommand):
             self.get_parser().error("missing query")
 
 
-class LockCommand(BuildAwareCommand):
-    """lock dependencies of your build script in place to ensure repeatable builds"""
+class EnvCommand(BuildAwareCommand):
+    """manage the build environment"""
 
     class Args(BuildAwareCommand.Args):
+        remove: bool
+        install: bool
         update: bool
+        lock: bool
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
-        parser.add_argument("-u", "--update", action="store_true", help="update the environment before locking")
+        parser.add_argument("-r", "--remove", action="store_true", help="remove the build environment")
+        parser.add_argument(
+            "-i",
+            "--install",
+            action="store_true",
+            help="install the build environment (this "
+            "operation is implied with all operations that execute the build graph and is a no-op if the "
+            "environment appears to be up to date)",
+        )
+        parser.add_argument("-u", "--update", action="store_true", help="update dependencies, ignore lock file")
+        parser.add_argument("-l", "--lock", action="store_true", help="update the lock file after installing")
 
-    def execute(self, args: Args) -> int | None:
+    def execute(self, args: Args) -> int:
         super().execute(args)
+
+        if args.install and args.remove:
+            self.get_parser().error("cannot combine --install and --remove")
+        if args.update and args.remove:
+            self.get_parser().error("cannot combine --update and --remove")
+        if args.lock and args.remove:
+            self.get_parser().error("cannot combine --lock and --remove")
+
         manager = self.get_environment_manager(args)
-        if manager.are_we_in():
-            self.get_parser().error("cannot lock from inside build environment")
-        manager.install(args.update)
-        manager.lock()
-        return None
+
+        if args.remove:
+            if manager.exists():
+                print("deleting environment", manager.env_dir)
+                manager.destroy()
+                return 0
+            else:
+                print("environment", manager.env_dir, "does not exist")
+                return 1
+
+        if args.install or args.update:
+            if not manager.check_outdated() and not args.update:
+                print("build environment is up to date")
+                # Check if the lock file appears outdated.
+                lockfile_outdated = manager.calculate_lockfile_hash() != manager.read_environment_hash()
+                if lockfile_outdated and args.lock:
+                    manager.lock()
+            else:
+                print("updating" if manager.exists() else "creating", "build environment")
+                manager.install(args.update)
+                if args.lock:
+                    manager.lock()
+            return 0
+
+        self.get_parser().error("please provide an option")
 
 
 def _main() -> None:
@@ -288,7 +332,7 @@ def _main() -> None:
     app.add_command("test", RunCommand("test"))
     app.add_command("ls", LsCommand())
     app.add_command("query", QueryCommand())
-    app.add_command("lock", LockCommand())
+    app.add_command("env", EnvCommand())
     sys.exit(app.run())
 
 

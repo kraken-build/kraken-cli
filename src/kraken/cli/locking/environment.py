@@ -9,11 +9,8 @@ import os
 import shutil
 import subprocess as sp
 import sys
-from curses import meta
-from fcntl import lockf
-from importlib.metadata import metadata
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Iterable, cast
 
 from kraken.cli import __version__
 
@@ -32,6 +29,10 @@ KRAKEN_REQUIREMENTS_FILE = ".kraken.requirements"
 KRAKEN_LOCK_FILE = ".kraken.lock"
 KRAKEN_ENV_HASH_FILE = ".kraken-env-hash"
 logger = logging.getLogger(__name__)
+
+
+def _hash_strings(strings: Iterable[str]) -> str:
+    return hashlib.md5(":".join(strings).encode()).hexdigest()
 
 
 class EnvironmentManager:
@@ -71,7 +72,7 @@ class EnvironmentManager:
             # TODO (@NiklasRosenstein): It would be nice if we could tell Pip to install kraken-cli in
             #       development mode, but `pip install -e DIR` does not currently work for projects using
             #       Poetry.
-            return [str(project_root)]
+            return [f"kraken-cli@{project_root}"]
 
         # Determine the next Kraken CLI release that may ship with breaking changes.
         version: tuple[int, int, int] = cast(Any, tuple(map(int, __version__.split("."))))
@@ -92,7 +93,13 @@ class EnvironmentManager:
         return self._requirements
 
     def calculate_requirements_hash(self) -> str:
-        return hashlib.md5(":".join(self.get_full_requirements().to_args()).encode()).hexdigest()
+        return _hash_strings(self.get_full_requirements().to_args())
+
+    def calculate_lockfile_hash(self) -> str | None:
+        lockfile = self.project.read_lock_file()
+        if lockfile:
+            return _hash_strings(lockfile.requirements.to_args())
+        return None
 
     def read_environment_hash(self) -> str | None:
         """Reads the environment hash that describes the requirements that were used to install the environment."""
@@ -115,6 +122,9 @@ class EnvironmentManager:
             suffix = ""
         return prefix / (name + suffix)
 
+    def exists(self) -> bool:
+        return self.env_dir.is_dir()
+
     def destroy(self) -> None:
         """Removes the virtual environment if it exists."""
 
@@ -133,12 +143,9 @@ class EnvironmentManager:
         logger.info("destroying virtual environment %s", self.env_dir)
         shutil.rmtree(self.env_dir)
 
-    def install(self, update: bool = False) -> None:
-        """Ensure that the virtual environment is up to date."""
-
+    def check_outdated(self) -> bool:
         expected_hash = self.calculate_requirements_hash()
         got_hash = self.read_environment_hash()
-        needs_install = update
 
         if expected_hash != got_hash:
             logger.info(
@@ -146,17 +153,20 @@ class EnvironmentManager:
                 expected_hash,
                 got_hash,
             )
-            needs_install = True
+            return True
 
-        if not needs_install:
-            return
+        return False
+
+    def install(self, update: bool = False) -> None:
+        """Ensure that the virtual environment is up to date."""
 
         verb = "updating" if self.env_dir.exists() else "creating"
 
         lock_file = self.project.read_lock_file()
         if lock_file and not update:
-            if lock_file.requirements != self.get_full_requirements():
-                logger.warning("lock file appears to be out dated, run `kraken lock` to update it")
+            if self.calculate_lockfile_hash() != self.read_environment_hash():
+                logger.warning("lock file appears to be out dated, your environment may not contain what you expect")
+                logger.warning("  run `kraken env --update --lock` to update the lock file")
             requirements = lock_file.to_args()
             logger.info("%s virtual %s environment from lock file", verb, self.env_dir)
         else:
@@ -174,7 +184,7 @@ class EnvironmentManager:
         if update:
             command += ["--upgrade"]
         sp.check_call(command, env=env)
-        self.write_environment_hash(expected_hash)
+        self.write_environment_hash(self.calculate_requirements_hash())
 
     def are_we_in(self) -> bool:
         """Returns `True` if we're inside the environment managed here."""
@@ -193,10 +203,11 @@ class EnvironmentManager:
     def dispatch(self, argv: list[str]) -> int:
         """Dispatch to the kraken-cli inside the environment."""
 
-        # TODO (@NiklasRosenstein): Windows
         logger.info("dispatching to virtual environment %s", self.env_dir)
         kraken_cli = self.get_program("kraken")
-        return sp.call([str(kraken_cli)] + argv)
+        env = os.environ.copy()
+        env[ENV_KRAKEN_MANAGED] = "0"
+        return sp.call([str(kraken_cli)] + argv, env=env)
 
     def lock(self) -> None:
         """Locks all immediate and transitive dependencies in the virtual environment and writes it into
@@ -209,10 +220,6 @@ class EnvironmentManager:
         # TODO (@NiklasRosenstein): We should keep only the distributions that are required by the initial
         #       requirement set, and ignore any distributions that were manually added into the build
         #       environment (and warn about them).
-
-        # TODO (@NiklasRosenstein): Need to respect editable dependency if KRAKEN_DEVELOP is set.
-        #       Instead of pinning the kraken-cli version, we instead need to make sure we install it
-        #       in development mode even when installing from a lock file?
 
         metadata = LockfileMetadata.new()
         metadata.kraken_cli_version = f"{env.kraken_cli_version} (instrumented by {metadata.kraken_cli_version})"

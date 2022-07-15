@@ -6,7 +6,7 @@ import platform
 import sys
 from typing import Any
 
-from .requirements import RequirementSpec
+from .requirements import LocalRequirement, RequirementSpec
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.Z"
 
@@ -94,6 +94,14 @@ class Lockfile:
         """Converts the pinned versions in the lock file to Pip install args."""
 
         args = self.requirements.to_args(with_requirements=False)
+        local_dependencies = {
+            dep.name: dep.path for dep in self.requirements.requirements if isinstance(dep, LocalRequirement)
+        }
         for key, value in self.pinned.items():
-            args += [f"{key}=={value}"]
+            if key in local_dependencies:
+                # NOTE (@NiklasRosenstein): The purpose here is to keep local dependencies installed from the same
+                #       local source.
+                args += [str(local_dependencies[key])]
+            else:
+                args += [f"{key}=={value}"]
         return args

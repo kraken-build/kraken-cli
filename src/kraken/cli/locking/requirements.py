@@ -14,21 +14,29 @@ from packaging.requirements import Requirement
 
 def parse_requirement(value: str) -> LocalRequirement | Requirement:
     # TODO (@NiklasRosenstein): Better support for other operating systems to identify a local requirement
-    if value.startswith("/") or value.startswith("./"):
-        return LocalRequirement(Path(value))
+    match = re.match(r"(.*?)@(.*)", value)
+    if match:
+        return LocalRequirement(match.group(1), Path(match.group(2)))
     else:
         return Requirement(value)
 
 
 @dataclasses.dataclass
 class LocalRequirement:
-    """Represents a requirement on a local project on the filesystem."""
+    """Represents a requirement on a local project on the filesystem.
 
-    def __init__(self, path: Path) -> None:
+    The string format of a local requirement is `$PATH [$NAME]` where the `$NAME` is the name of the package
+    that is located at the path."""
+
+    def __init__(self, name: str, path: Path) -> None:
+        self.name = name
         self.path = path
 
     def __str__(self) -> str:
-        return str(self.path)
+        return f"{self.name}@{self.path}"
+
+    def __repr__(self) -> str:
+        return f"LocalRequirement({str(self)!r})"
 
 
 @dataclasses.dataclass
@@ -38,6 +46,10 @@ class RequirementSpec:
     requirements: list[Requirement | LocalRequirement]
     index_url: str | None = None
     extra_index_urls: list[str] = dataclasses.field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        for req in self.requirements:
+            assert isinstance(req, (Requirement, LocalRequirement)), req
 
     def add_requirements(self, reqs: Iterable[str | Requirement | LocalRequirement]) -> None:
         for req in reqs:
@@ -75,7 +87,11 @@ class RequirementSpec:
         if unknown:
             raise ValueError(f"encountered unknown arguments in requirements: {unknown}")
 
-        return RequirementSpec(parsed.packages or [], parsed.index_url, parsed.extra_index_url or [])
+        return RequirementSpec(
+            [parse_requirement(x) for x in parsed.packages or []],
+            parsed.index_url,
+            parsed.extra_index_url or [],
+        )
 
     def to_args(self, with_requirements: bool = True) -> list[str]:
         """Converts the requirements back to Pip install arguments."""
@@ -86,7 +102,7 @@ class RequirementSpec:
         for url in self.extra_index_urls:
             args += ["--extra-index-url", url]
         if with_requirements:
-            args += [str(x) for x in self.requirements]
+            args += [str(x) if isinstance(x, (str, Requirement)) else str(x.path) for x in self.requirements]
         return args
 
 

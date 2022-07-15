@@ -118,6 +118,11 @@ class DefaultProjectImpl(ProjectInterface):
 
     def write_lock_file(self, data: Lockfile) -> None:
         files = self._get_files()
+        try:
+            file = files.lock.relative_to(Path.cwd())
+        except ValueError:
+            file = files.lock
+        print("writing lock file", file)
         files.lock.parent.mkdir(parents=True, exist_ok=True)
         with files.lock.open("w") as fp:
             json.dump(data.to_json(), fp)
