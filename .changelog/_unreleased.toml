@@ -3,3 +3,9 @@ id = "c4bfa201-751f-411d-a303-ef52d1a6f569"
 type = "improvement"
 description = "calculate table column with in `kraken ls` command instead of using a fixed 32 characters"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "cfd16d2f-a6c7-4848-abfb-12fb8aa3bc30"
+type = "breaking change"
+description = "move `kraken query --describe` functionality in `kraken describe` command"
+author = "@NiklasRosenstein"

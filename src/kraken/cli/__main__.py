@@ -180,13 +180,11 @@ class QueryCommand(BuildGraphCommand):
     class Args(BuildGraphCommand.Args):
         is_up_to_date: bool
         legend: bool
-        describe: bool
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
         parser.add_argument("--legend", action="store_true", help="print out a legend along with the query result")
         parser.add_argument("--is-up-to-date", action="store_true", help="query if the selected task(s) are up to date")
-        parser.add_argument("--describe", action="store_true", help="describe the task(s)")
 
     def execute(self, args: BuildGraphCommand.Args) -> int | None:
         args.quiet = True
@@ -232,33 +230,37 @@ class QueryCommand(BuildGraphCommand):
             print("exit code:", exit_code)
             sys.exit(exit_code)
 
-        elif args.describe:
-            tasks = list(graph.tasks(required_only=True))
-            print("selected", len(tasks), "task(s)")
-            print()
-
-            for task in tasks:
-                print("Task", colored(task.path, attrs=["bold", "underline"]))
-                print("  Type".ljust(30), type(task).__module__ + "." + type(task).__name__)
-                print("  File".ljust(30), colored(sys.modules[type(task).__module__].__file__ or "???", "cyan"))
-                print("  Default".ljust(30), task.default)
-                print("  Capture".ljust(30), task.capture)
-                rels = list(task.get_relationships())
-                print("  Relationships".ljust(30), len(rels))
-                for rel in rels:
-                    print(
-                        "".ljust(4),
-                        colored(rel.other_task.path, attrs=["bold"]),
-                        f"before={rel.before}, strict={rel.strict}",
-                    )
-                print("  Properties".ljust(30), len(type(task).__schema__))
-                for key in type(task).__schema__:
-                    prop: Property[Any] = getattr(task, key)
-                    print("".ljust(4), colored(key, attrs=["reverse"]), f'= {colored(prop.get_or("<unset>"), "blue")}')
-                print()
-
         else:
             self.get_parser().error("missing query")
+
+
+class DescribeCommand(BuildGraphCommand):
+    """ describe one or more tasks in detail"""
+
+    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BuildGraphCommand.Args) -> None:
+        tasks = list(graph.tasks(required_only=True))
+        print("selected", len(tasks), "task(s)")
+        print()
+
+        for task in tasks:
+            print("Task", colored(task.path, attrs=["bold", "underline"]))
+            print("  Type".ljust(30), type(task).__module__ + "." + type(task).__name__)
+            print("  File".ljust(30), colored(sys.modules[type(task).__module__].__file__ or "???", "cyan"))
+            print("  Default".ljust(30), task.default)
+            print("  Capture".ljust(30), task.capture)
+            rels = list(task.get_relationships())
+            print("  Relationships".ljust(30), len(rels))
+            for rel in rels:
+                print(
+                    "".ljust(4),
+                    colored(rel.other_task.path, attrs=["bold"]),
+                    f"before={rel.before}, strict={rel.strict}",
+                )
+            print("  Properties".ljust(30), len(type(task).__schema__))
+            for key in type(task).__schema__:
+                prop: Property[Any] = getattr(task, key)
+                print("".ljust(4), colored(key, attrs=["reverse"]), f'= {colored(prop.get_or("<unset>"), "blue")}')
+            print()
 
 
 class EnvCommand(BuildAwareCommand):
@@ -339,6 +341,7 @@ def _main() -> None:
     app.add_command("test", RunCommand("test"))
     app.add_command("ls", LsCommand())
     app.add_command("query", QueryCommand())
+    app.add_command("describe", DescribeCommand())
     app.add_command("env", EnvCommand())
     sys.exit(app.run())
 
