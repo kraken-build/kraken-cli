@@ -164,11 +164,12 @@ class LsCommand(BuildGraphCommand):
             print("no tasks.", file=sys.stderr)
             sys.exit(1)
 
-        print(colored("D " + "Task".ljust(33) + "Type", attrs=["bold"]))
+        longest_name = max(map(len, (task.path for task in graph.tasks()))) + 1
+        print(colored("D " + "Task".ljust(longest_name + 1) + "Type", attrs=["bold"]))
         for task in graph.execution_order():
             print(
                 colored("●", "cyan" if task.default else "grey"),
-                task.path.ljust(32),
+                task.path.ljust(longest_name),
                 type(task).__module__ + "." + type(task).__name__,
             )
 
