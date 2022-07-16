@@ -16,18 +16,16 @@ from kraken.cli import __version__
 
 from .lockfile import Lockfile, LockfileMetadata
 from .project import ProjectInterface
-from .requirements import RequirementSpec
+from .requirements import RequirementSpec, parse_requirement
 
 #: This environment variable can be set to "1" to install the Kraken CLI package as a development dependency
 #: when bootstrapping a build environment. This is relevant when developing Kraken CLI itself.
 ENV_KRAKEN_DEVELOP = "KRAKEN_DEVELOP"
 
-#: This environment variable can be set to "0" to disable using a build environment at all.
+#: This environment variable can be set to "1" to mark the current environment as already managed. If this is
+#: not set, a separate build environment will be created which is considered the "managed" environment.
 ENV_KRAKEN_MANAGED = "KRAKEN_MANAGED"
 
-KRAKEN_REQUIREMENTS_FILE = ".kraken.requirements"
-KRAKEN_LOCK_FILE = ".kraken.lock"
-KRAKEN_ENV_HASH_FILE = ".kraken-env-hash"
 logger = logging.getLogger(__name__)
 
 
@@ -189,8 +187,8 @@ class EnvironmentManager:
     def are_we_in(self) -> bool:
         """Returns `True` if we're inside the environment managed here."""
 
-        if os.getenv(ENV_KRAKEN_MANAGED) == "0":
-            logger.info("encountered %s=0, assuming current environment as the build environment", ENV_KRAKEN_MANAGED)
+        if os.getenv(ENV_KRAKEN_MANAGED) == "1":
+            logger.info("encountered %s=1, assuming current environment as the build environment", ENV_KRAKEN_MANAGED)
             return True
 
         try:
@@ -206,7 +204,7 @@ class EnvironmentManager:
         logger.info("dispatching to virtual environment %s", self.env_dir)
         kraken_cli = self.get_program("kraken")
         env = os.environ.copy()
-        env[ENV_KRAKEN_MANAGED] = "0"
+        env[ENV_KRAKEN_MANAGED] = "1"
         return sp.call([str(kraken_cli)] + argv, env=env)
 
     def lock(self) -> None:
@@ -216,6 +214,26 @@ class EnvironmentManager:
         from .inspect import get_environment_state_of_interpreter
 
         env = get_environment_state_of_interpreter(str(self.get_program("python")))
+
+        # Collect only the package name and version for required packages.
+        distributions = {}
+        stack = [req.name for req in self.get_full_requirements().requirements]
+        while stack:
+            package_name = stack.pop(0)
+            if package_name in distributions:
+                continue
+            if package_name not in env.distributions:
+                # NOTE (@NiklasRosenstein): We may be missing the package because it's a requirement that is only
+                #       installed under certain conditions (e.g. markers/extras).
+                continue
+            dist = env.distributions[package_name]
+            distributions[package_name] = dist.version
+            stack += [parse_requirement(req).name for req in dist.requirements]
+
+        # Warn about installed distributions that are not expected according to the requirement spec.
+        extra_distributions = env.distributions.keys() - distributions.keys()
+        if extra_distributions:
+            logger.warning("there are extra dependencies in the environment: %s", extra_distributions)
 
         # TODO (@NiklasRosenstein): We should keep only the distributions that are required by the initial
         #       requirement set, and ignore any distributions that were manually added into the build
@@ -227,6 +245,6 @@ class EnvironmentManager:
         lockfile = Lockfile(
             metadata,
             self.get_full_requirements(),
-            {dist.name: dist.version for dist in env.distributions.values()},
+            distributions,
         )
         self.project.write_lock_file(lockfile)

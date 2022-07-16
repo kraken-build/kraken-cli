@@ -1,0 +1,5 @@
+[[entries]]
+id = "65a5db35-37de-4095-a91f-38d0bebbc487"
+type = "improvement"
+description = "ignore dependencies that are not required when locking"
+author = "@NiklasRosenstein"

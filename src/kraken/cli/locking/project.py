@@ -44,8 +44,8 @@ class DefaultProjectImpl(ProjectInterface):
     into the project root as `.kraken.lock.json`.
     """
 
-    REQUIREMENT_FILES = [Path(".kraken/requirements.txt"), Path(".kraken.requirements.txt")]
-    LOCK_FILES = [Path(".kraken/lock.json"), Path(".kraken.lock.json")]
+    REQUIREMENT_FILES = [Path(".kraken/requirements.txt"), Path(".kraken.requirements")]
+    LOCK_FILES = [Path(".kraken/kraken.lock"), Path(".kraken.lock")]
 
     @dataclasses.dataclass
     class Files:
@@ -125,4 +125,4 @@ class DefaultProjectImpl(ProjectInterface):
         print("writing lock file", file)
         files.lock.parent.mkdir(parents=True, exist_ok=True)
         with files.lock.open("w") as fp:
-            json.dump(data.to_json(), fp)
+            json.dump(data.to_json(), fp, indent=4)

@@ -294,6 +294,8 @@ class EnvCommand(BuildAwareCommand):
             self.get_parser().error("cannot combine --lock and --remove")
 
         manager = self.get_environment_manager(args)
+        if manager.are_we_in():
+            self.get_parser().error("`kraken env` command cannot be used inside managed enviroment")
 
         if args.remove:
             if manager.exists():
@@ -307,15 +309,19 @@ class EnvCommand(BuildAwareCommand):
         if args.install or args.update:
             if not manager.check_outdated() and not args.update:
                 print("build environment is up to date")
-                # Check if the lock file appears outdated.
-                lockfile_outdated = manager.calculate_lockfile_hash() != manager.read_environment_hash()
-                if lockfile_outdated and args.lock:
-                    manager.lock()
             else:
                 print("updating" if manager.exists() else "creating", "build environment")
                 manager.install(args.update)
-                if args.lock:
-                    manager.lock()
+
+        if args.lock:
+            # Check if the lock file appears outdated.
+            lockfile_outdated = manager.calculate_lockfile_hash() != manager.read_environment_hash()
+            if lockfile_outdated and args.lock:
+                manager.lock()
+            else:
+                print("lockfile is up to date")
+
+        if args.install or args.update or args.lock:
             return 0
 
         self.get_parser().error("please provide an option")
