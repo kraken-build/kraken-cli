@@ -235,7 +235,7 @@ class QueryCommand(BuildGraphCommand):
 
 
 class DescribeCommand(BuildGraphCommand):
-    """ describe one or more tasks in detail"""
+    """describe one or more tasks in detail"""
 
     def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BuildGraphCommand.Args) -> None:
         tasks = list(graph.tasks(required_only=True))
