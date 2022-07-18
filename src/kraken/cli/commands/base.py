@@ -219,7 +219,7 @@ class BuildAwareCommand(Command):
     def execute(self, args: Args) -> int | None:
         logging.basicConfig(
             level=logging.INFO if args.verbose else logging.ERROR if args.quiet else logging.WARNING,
-            format=f"{colored('%(levelname)7s', 'magenta')} | {colored('%(name)s', 'blue')} | "
+            format=f"{colored('%(levelname)7s', 'magenta')} | {colored('%(name)-24s', 'blue')} | "
             f"{colored('%(message)s', 'cyan')}",
         )
         return None
