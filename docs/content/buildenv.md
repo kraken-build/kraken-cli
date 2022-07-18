@@ -19,9 +19,9 @@ Below is a summary of Kraken CLI's behaviour for several commands with respect t
 | Command | Behaviour |
 | ------- | --------- |
 | `kraken env install` | Ensure that the build environment is installed. <sup>(1)</sup> |
-| `kraken env update` | Reinstall requirements, ignoring the existing lock file and write a new one. |
+| `kraken env upgrade` | Reinstall requirements, ignoring the existing lock file and write a new one. |
 | `kraken env lock` | Write the lock file. Requires that the build environment exists. |
-| `kraken env rm` | Delete the build environment. |
+| `kraken env remove` | Delete the build environment. |
 | `kraken run` | (1) |
 
 ## Workflow chart
