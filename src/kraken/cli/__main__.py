@@ -10,11 +10,11 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
-from kraken.core.build_context import BuildContext, BuildError
-from kraken.core.build_graph import BuildGraph
+from kraken.core.context import BuildError, Context
 from kraken.core.executor import COLORS_BY_STATUS, TaskStatus, get_task_status
+from kraken.core.graph import TaskGraph
 from kraken.core.property import Property
-from kraken.core.task import Task
+from kraken.core.task import GroupTask, Task
 from slap.core.cli import CliApp, Command, Group
 from termcolor import colored
 
@@ -189,7 +189,7 @@ class BuildGraphCommand(BuildAwareCommand):
         super().init_parser(parser)
         parser.add_argument("targets", metavar="target", nargs="*", help="one or more target to build")
 
-    def resolve_tasks(self, args: Args, context: BuildContext) -> list[Task]:
+    def resolve_tasks(self, args: Args, context: Context) -> list[Task]:
         return context.resolve_tasks(args.targets or None)
 
     def execute(self, args: Args) -> int | None:  # type: ignore[override]
@@ -198,15 +198,15 @@ class BuildGraphCommand(BuildAwareCommand):
         if not self.in_build_environment():
             return self.dispatch_to_build_environment(args)
 
-        context = BuildContext(args.build_dir)
+        context = Context(args.build_dir)
         context.load_project(None, Path.cwd())
         context.finalize()
         targets = self.resolve_tasks(args, context)
-        graph = BuildGraph(targets)
+        graph = TaskGraph(targets)
 
         return self.execute_with_graph(context, graph, args)
 
-    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: Args) -> int | None:
+    def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> int | None:
         raise NotImplementedError
 
 
@@ -228,20 +228,20 @@ class RunCommand(BuildGraphCommand):
         super().init_parser(parser)
         parser.add_argument("-s", "--skip-build", action="store_true", help="just load the project, do not build")
 
-    def resolve_tasks(self, args: BuildGraphCommand.Args, context: BuildContext) -> list[Task]:
+    def resolve_tasks(self, args: BuildGraphCommand.Args, context: Context) -> list[Task]:
         if self._main_target:
             targets = [self._main_target] + list(args.targets or [])
             return context.resolve_tasks(targets)
         return super().resolve_tasks(args, context)
 
-    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: Args) -> int | None:  # type: ignore
+    def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> int | None:  # type: ignore
         graph.trim()
         if not graph:
             print("error: no tasks selected", file=sys.stderr)
             return 1
         if not args.skip_build:
             try:
-                context.execute(graph, True)
+                context.execute(graph, args.verbose)
             except BuildError as exc:
                 logger.error("%s", exc)
                 return 1
@@ -264,7 +264,7 @@ class LsCommand(BuildGraphCommand):
             help="trim non-default tasks (only without selected targets)",
         )
 
-    def resolve_tasks(self, args: Args, context: BuildContext) -> list[Task]:  # type: ignore
+    def resolve_tasks(self, args: Args, context: Context) -> list[Task]:  # type: ignore
         tasks: list[Task] = []
         if args.default:
             if args.targets:
@@ -280,7 +280,7 @@ class LsCommand(BuildGraphCommand):
             tasks += project.tasks().values()
         return tasks
 
-    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BuildGraphCommand.Args) -> None:
+    def execute_with_graph(self, context: Context, graph: TaskGraph, args: BuildGraphCommand.Args) -> None:
         if len(graph) == 0:
             print("no tasks.", file=sys.stderr)
             sys.exit(1)
@@ -311,7 +311,7 @@ class QueryCommand(BuildGraphCommand):
         args.quiet = True
         return super().execute(args)
 
-    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: Args) -> int | None:  # type: ignore
+    def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> int | None:  # type: ignore
         if args.is_up_to_date:
             tasks = list(graph.tasks(required_only=True))
             print(f"querying status of {len(tasks)} task(s)")
@@ -356,13 +356,13 @@ class QueryCommand(BuildGraphCommand):
 class DescribeCommand(BuildGraphCommand):
     """describe one or more tasks in detail"""
 
-    def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: BuildGraphCommand.Args) -> None:
-        tasks = list(graph.tasks(required_only=True))
+    def execute_with_graph(self, context: Context, graph: TaskGraph, args: BuildGraphCommand.Args) -> None:
+        tasks = context.resolve_tasks(args.targets)
         print("selected", len(tasks), "task(s)")
         print()
 
         for task in tasks:
-            print("Task", colored(task.path, attrs=["bold", "underline"]))
+            print("Group" if isinstance(task, GroupTask) else "Task", colored(task.path, attrs=["bold", "underline"]))
             print("  Type".ljust(30), type(task).__module__ + "." + type(task).__name__)
             print("  File".ljust(30), colored(sys.modules[type(task).__module__].__file__ or "???", "cyan"))
             print("  Default".ljust(30), task.default)
