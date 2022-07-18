@@ -25,3 +25,16 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: python-slap/slap.cli@gha/changelog/update/v1
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: python-slap/slap.cli@gha/install/v1
+    - run: slap venv -sc && slap install --only-extras docs
+    - run: slap run docs:build
+    - uses: actions/upload-artifact@v2
+      with: { name: docs, path: docs/site }
+    - uses: Cecilapp/GitHub-Pages-deploy@v3
+      env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+      with: { email: rosensteinniklas@gmail.com, build_dir: docs/site }
