@@ -12,11 +12,11 @@ from kraken.core.build_context import BuildContext
 from kraken.core.build_graph import BuildGraph
 from kraken.core.property import Property
 from kraken.core.task import Task
-from slap.core.cli import CliApp, Command
+from slap.core.cli import CliApp, Command, Group
 from termcolor import colored
 
-from kraken.cli.locking.environment import EnvironmentManager
-from kraken.cli.locking.project import DefaultProjectImpl
+from kraken.cli.buildenv.environment import EnvironmentManager
+from kraken.cli.buildenv.project import DefaultProjectImpl
 
 from . import __version__
 
@@ -263,75 +263,66 @@ class DescribeCommand(BuildGraphCommand):
             print()
 
 
-class EnvCommand(BuildAwareCommand):
-    """manage the build environment"""
+class EnvStatusCommand(BuildAwareCommand):
+    """ provide the status of the build environment"""
 
-    class Args(BuildAwareCommand.Args):
-        remove: bool
-        install: bool
-        update: bool
-        lock: bool
-
-    def init_parser(self, parser: argparse.ArgumentParser) -> None:
-        super().init_parser(parser)
-        parser.add_argument("-r", "--remove", action="store_true", help="remove the build environment")
-        parser.add_argument(
-            "-i",
-            "--install",
-            action="store_true",
-            help="install the build environment (this "
-            "operation is implied with all operations that execute the build graph and is a no-op if the "
-            "environment appears to be up to date)",
-        )
-        parser.add_argument("-u", "--update", action="store_true", help="update dependencies, ignore lock file")
-        parser.add_argument("-l", "--lock", action="store_true", help="update the lock file after installing")
-
-    def execute(self, args: Args) -> int:
-        super().execute(args)
-
-        if args.install and args.remove:
-            self.get_parser().error("cannot combine --install and --remove")
-        if args.update and args.remove:
-            self.get_parser().error("cannot combine --update and --remove")
-        if args.lock and args.remove:
-            self.get_parser().error("cannot combine --lock and --remove")
-
+    def execute(self, args: Any) -> None:
         manager = self.get_environment_manager(args)
         if manager.are_we_in():
-            self.get_parser().error("`kraken env` command cannot be used inside managed enviroment")
+            self.get_parser().error("`kraken env` commands cannot be used inside managed enviroment")
+        print('environment path:', manager.env_dir, "(does not exist)" if not manager.exists() else "")
+        print("outdated" if manager.check_outdated() else "up to date")
 
-        if args.remove:
-            if manager.exists():
-                print("deleting environment", manager.env_dir)
-                manager.destroy()
-                return 0
-            else:
-                print("environment", manager.env_dir, "does not exist")
-                return 1
 
-        if args.install or args.update:
-            if not manager.check_outdated() and not args.update:
-                print("build environment is up to date")
-            else:
-                print("updating" if manager.exists() else "creating", "build environment")
-                manager.install(args.update)
+class EnvInstallCommand(BuildAwareCommand):
+    """ ensure the build environment is installed"""
 
-        if args.lock:
-            # Check if the lock file appears outdated.
-            lockfile_outdated = manager.calculate_lockfile_hash() != manager.read_environment_hash()
-            if lockfile_outdated and args.lock:
-                manager.lock()
-            else:
-                print("lockfile is up to date")
+    def execute(self, args: Any) -> None:
+        manager = self.get_environment_manager(args)
+        if manager.are_we_in():
+            self.get_parser().error("`kraken env` commands cannot be used inside managed enviroment")
+        if manager.exists() and not manager.check_outdated():
+            print("build environment is up to date")
+        else:
+            print("updating" if manager.exists() else "creating", "build environment")
+            manager.install(args.update)
 
-        if args.install or args.update or args.lock:
-            return 0
 
-        self.get_parser().error("please provide an option")
+class EnvUpdateCommand(BuildAwareCommand):
+    """ update the build environment and the lock file"""
+
+    def execute(self, args: Any) -> None:
+        manager = self.get_environment_manager(args)
+        if manager.are_we_in():
+            self.get_parser().error("`kraken env` commands cannot be used inside managed enviroment")
+        # TODO (@NiklasRosenstein): Use a slightly different wording to inform that we're updating it while
+        #       ignoring the lock file?
+        print("updating" if manager.exists() else "creating", "build environment")
+        manager.install(True)
+
+
+class EnvLockCommand(BuildAwareCommand):
+    """ write the lock file"""
+
+    def execute(self, args: Any) -> None:
+        manager = self.get_environment_manager(args)
+        if manager.are_we_in():
+            self.get_parser().error("`kraken env` commands cannot be used inside managed enviroment")
+        if not manager.exists():
+            self.get_parser().error("build environment does not exist")
+        if manager.check_outdated():
+            logger.warning("build environment is outdated with requirement spec")
+        manager.lock()
 
 
 def _main() -> None:
     from kraken import core
+
+    env = Group("manage the build environment")
+    env.add_command("status", EnvStatusCommand())
+    env.add_command("install", EnvInstallCommand())
+    env.add_command("update", EnvUpdateCommand())
+    env.add_command("lock", EnvLockCommand())
 
     app = CliApp("kraken", f"cli: {__version__}, core: {core.__version__}", features=[])
     app.add_command("run", RunCommand())
@@ -342,7 +333,7 @@ def _main() -> None:
     app.add_command("ls", LsCommand())
     app.add_command("query", QueryCommand())
     app.add_command("describe", DescribeCommand())
-    app.add_command("env", EnvCommand())
+    app.add_command("env", env)
     sys.exit(app.run())
 
 
