@@ -345,9 +345,43 @@
 <li>manage a separate Python virtual environment with build time dependencies to ensure consistent, repeatable builds (see <a href="buildenv/">Build Environment</a>)</li>
 </ul>
 <h2 id="synopsis">Synopsis</h2>
-<div class="highlight"><span class="filename">$ kraken --help</span><pre><span></span><code>
+<div class="highlight"><span class="filename">$ kraken --help</span><pre><span></span><code>usage: kraken [-h] [--version] [{run,fmt,lint,build,test,ls,query,describe,env}] ...
+
+positional arguments:
+  {run,fmt,lint,build,test,ls,query,describe,env}
+                                                  the subcommand to execute
+  ...                                             arguments for the subcommand
+
+options:
+  -h, --help                                      show this help message and exit
+  --version                                       show program&#39;s version number and exit
+
+subcommands:
+  run                                             execute one or more kraken tasks
+  fmt                                             execute &quot;fmt&quot; tasks
+  lint                                            execute &quot;lint&quot; tasks
+  build                                           execute &quot;build&quot; tasks
+  test                                            execute &quot;test&quot; tasks
+  ls                                              list targets in the build
+  query                                           perform queries on the build graph
+  describe                                        describe one or more tasks in detail
+  env                                             manage the build environment
 </code></pre></div>
-<div class="highlight"><span class="filename">$ kraken env --help</span><pre><span></span><code>
+<div class="highlight"><span class="filename">$ kraken env --help</span><pre><span></span><code>usage: kraken env [-h] [{status,install,upgrade,lock,remove}] ...
+
+positional arguments:
+  {status,install,upgrade,lock,remove}  the subcommand to execute
+  ...                                   arguments for the subcommand
+
+options:
+  -h, --help                            show this help message and exit
+
+subcommands:
+  status                                provide the status of the build environment
+  install                               ensure the build environment is installed
+  upgrade                               upgrade the build environment and lock file
+  lock                                  create or update the lock file
+  remove                                remove the build environment
 </code></pre></div>
 
               
