@@ -17,19 +17,8 @@ class ProjectInterface(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def has_lock_file(self) -> bool:
-
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def read_lock_file(self) -> Lockfile | None:
-        """Return the lock file in the project."""
-
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def write_lock_file(self, data: Lockfile) -> None:
-        """Update the lock file in the project."""
+    def get_lock_file(self) -> Path:
+        """Returns the path to the lock file."""
 
         raise NotImplementedError
 
@@ -108,16 +97,8 @@ class DefaultProjectImpl(ProjectInterface):
         requirements.add_requirements(self._implied_requirements)
         return requirements
 
-    def has_lock_file(self) -> bool:
-        files = self._get_files()
-        return files.lock is not None and files.lock.exists()
-
-    def read_lock_file(self) -> Lockfile | None:
-        files = self._get_files()
-        if files.lock.is_file():
-            with files.lock.open() as fp:
-                return Lockfile.from_json(json.load(fp))
-        return None
+    def get_lock_file(self) -> Path:
+        return self._get_files().lock
 
     def write_lock_file(self, data: Lockfile) -> None:
         files = self._get_files()

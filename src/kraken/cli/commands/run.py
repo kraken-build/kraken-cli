@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
 
 from kraken.core import BuildError, Context, Task, TaskGraph
+from termcolor import colored
 
 from .base import BuildGraphCommand
-
-logger = logging.getLogger(__name__)
 
 
 class RunCommand(BuildGraphCommand):
@@ -44,6 +42,6 @@ class RunCommand(BuildGraphCommand):
             try:
                 context.execute(graph, args.verbose)
             except BuildError as exc:
-                logger.error("%s", exc)
+                print(colored("Error: %s" % (exc,), "red"))
                 return 1
         return 0

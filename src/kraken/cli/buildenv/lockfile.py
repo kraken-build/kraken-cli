@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import json
 import platform
 import sys
+from pathlib import Path
 from typing import Any
 
 from .requirements import LocalRequirement, RequirementSpec
@@ -74,6 +76,17 @@ class Lockfile:
 
     #: Exact versions for packages that were installed into the environment.
     pinned: dict[str, str]
+
+    @staticmethod
+    def from_path(path: Path) -> Lockfile | None:
+        if path.is_file():
+            with path.open() as fp:
+                return Lockfile.from_json(json.load(fp))
+        return None
+
+    def write_to(self, path: Path) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(self.to_json(), indent=2))
 
     @staticmethod
     def from_json(data: dict[str, Any]) -> Lockfile:

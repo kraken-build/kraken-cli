@@ -34,10 +34,19 @@ class BuildEnvironment:
 
         self._path = path
         self._hash_file = path / ".hash"
+        self._install_log_file = path / ".install-log"
 
     @property
     def path(self) -> Path:
         return self._path
+
+    @property
+    def hash_file(self) -> Path:
+        return self._hash_file
+
+    @property
+    def install_log_file(self) -> Path:
+        return self._install_log_file
 
     @property
     def hash(self) -> str | None:
@@ -109,7 +118,8 @@ class BuildEnvironment:
         logger.info("%s", command)
         if upgrade:
             command += ["--upgrade"]
-        sp.check_call(command)
+        with self._install_log_file.open("a") as fp:
+            sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
 
     def install_lockfile(self, lockfile: Lockfile) -> None:
         """Install requirements from a lockfile.
@@ -118,7 +128,8 @@ class BuildEnvironment:
 
         python = self.get_program("python")
         command = [str(python), "-m", "pip", "install", "--upgrade"] + lockfile.to_args()
-        sp.check_call(command)
+        with self._install_log_file.open("a") as fp:
+            sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
 
     def calculate_lockfile(self, requirements: RequirementSpec) -> CalculateLockfileResult:
         """Calculate the lockfile of the environment.

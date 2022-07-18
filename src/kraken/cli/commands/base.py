@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import shlex
 import subprocess as sp
 import sys
 from pathlib import Path
@@ -14,9 +15,11 @@ from termcolor import colored
 
 from kraken.cli import __version__
 from kraken.cli.buildenv.environment import BuildEnvironment
+from kraken.cli.buildenv.lockfile import Lockfile
 from kraken.cli.buildenv.project import DefaultProjectImpl, ProjectInterface
 
-logger = logging.getLogger(__name__)
+DEFAULT_BUILD_DIR = Path("build")
+DEFAULT_PROJECT_DIR = Path(".")
 
 
 def get_implied_requirements(develop: bool) -> list[str]:
@@ -78,7 +81,7 @@ class BuildAwareCommand(Command):
             "--build-dir",
             metavar="PATH",
             type=Path,
-            default=Path(".build"),
+            default=DEFAULT_BUILD_DIR,
             help="the build directory to write to [default: %(default)s]",
         )
         parser.add_argument(
@@ -86,17 +89,14 @@ class BuildAwareCommand(Command):
             "--project-dir",
             metavar="PATH",
             type=Path,
-            default=Path.cwd(),
+            default=DEFAULT_PROJECT_DIR,
             help="the root project directory [default: ./]",
         )
 
     def in_build_environment(self) -> bool:
         """Returns `True` if we're currently situated inside a build environment."""
 
-        if os.getenv("KRAKEN_MANAGED") == "1":
-            logger.info("found KRAKEN_MANAGED=1, current environment is considered the build environment")
-            return True
-        return False
+        return os.getenv("KRAKEN_MANAGED") == "1"
 
     def get_build_environment(self, args: Args) -> BuildEnvironment:
         """Returns the handle to manage the build environment."""
@@ -120,31 +120,75 @@ class BuildAwareCommand(Command):
         """
 
         if not build_env.exists():
-            logger.info("creating build environment (%s)", build_env.path)
+            print(
+                colored(
+                    "Creating Kraken build environment (%s) ..." % (colored(str(build_env.path), attrs=["bold"]),),
+                    "blue",
+                )
+            )
             build_env.create(None)
+        else:
+            print(
+                colored(
+                    "Reusing Kraken build environment (%s)" % (colored(str(build_env.path), attrs=["bold"]),),
+                    "blue",
+                )
+            )
 
         # NOTE (@NiklasRosenstein): This requirement spec will already contain the implied Kraken CLI requirement.
         requirements = project.get_requirement_spec()
 
         if not upgrade:
-            lockfile = project.read_lock_file()
+            lockfile_path = project.get_lock_file()
+            lockfile = Lockfile.from_path(lockfile_path)
             if lockfile is not None:
                 if lockfile.requirements.to_hash() != requirements.to_hash():
-                    logger.warning("lockfile appears to be outdated compared to project build requirements.")
-                    logger.warning("    you should consider re-locking using the `kraken env lock` command.")
+                    print(
+                        colored(
+                            "Warning: Your lockfile (%s) appears to be outdated. Consider re-writing it using the\n"
+                            "         %s command."
+                            % (
+                                colored(str(lockfile_path), attrs=["bold"]),
+                                colored("kraken env lock", "grey", attrs=["underline"]),
+                            ),
+                            "yellow",
+                        )
+                    )
 
                 if lockfile.requirements.to_hash() != build_env.hash:
-                    logger.info("environment is outdated compared to lockfile")
+                    print(
+                        colored(
+                            "Warning: Your build environment is outdated compared to your lockfile (%s).\n"
+                            "         Reinstalling from lockfile now ..."
+                            % (colored(str(lockfile_path), attrs=["bold"]),),
+                            "yellow",
+                        )
+                    )
                     build_env.install_lockfile(lockfile)
                     build_env.hash = lockfile.requirements.to_hash()
                     return
 
-        if requirements.to_hash() != build_env.hash or upgrade:
-            logger.info("installing requirements into build environment (%s)", build_env.path)
-            build_env.install_requirements(requirements, upgrade)
-            return
+        if build_env.hash is not None and requirements.to_hash() != build_env.hash:
+            print(
+                colored(
+                    "Warning: Your build environment is outdated compared to your requirements.\n"
+                    "         Reinstalling from requirements now ...",
+                    "yellow",
+                )
+            )
+            install = True
+        elif build_env.hash is None:
+            print(colored("Installing from requirements ...", "blue"))
+            install = True
+        elif upgrade:
+            print(colored("Upgrading environment from requirements ...", "blue"))
+            install = True
+        else:
+            install = False
 
-        logger.info("build environment is up to date")
+        if install:
+            build_env.install_requirements(requirements, upgrade)
+            build_env.hash = requirements.to_hash()
 
     def dispatch_to_build_environment(self, args: Args) -> int:
         """Dispatch to the build environment."""
@@ -156,7 +200,17 @@ class BuildAwareCommand(Command):
         project = self.get_project_interface(args)
         self.install(build_env, project)
 
-        logger.info("dispatching to virtual environment %s", build_env.path)
+        print(
+            colored(
+                "Dispatching command `%s` to build environment (%s)"
+                % (
+                    "kraken " + " ".join(map(shlex.quote, sys.argv[1:])),
+                    colored(str(build_env.path), attrs=["bold"]),
+                ),
+                "blue",
+            )
+        )
+
         kraken_cli = build_env.get_program("kraken")
         env = os.environ.copy()
         env["KRAKEN_MANAGED"] = "1"
