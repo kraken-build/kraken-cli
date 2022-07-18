@@ -1,4 +1,4 @@
-# Welcome to the Kraken CLI documentation!
+# Welcome to the `kraken-cli` documentation!
 
   [Kraken]: https://pypi.org/project/kraken-build/
 

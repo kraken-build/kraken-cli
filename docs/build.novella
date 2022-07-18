@@ -1,7 +1,7 @@
 template "mkdocs"
 
 action "mkdocs-update-config" {
-  site_name = "Kraken CLI"
+  site_name = "kraken-cli"
   update '$.theme.palette' add: {'scheme': 'default', 'primary': 'teal', 'accent': 'indigo'}
 
 }
