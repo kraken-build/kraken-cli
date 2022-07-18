@@ -22,6 +22,10 @@
         
         <link rel="stylesheet" href="assets/stylesheets/palette.cbb835fc.min.css">
         
+          
+          
+          <meta name="theme-color" content="#009485">
+        
       
       
     
@@ -50,7 +54,7 @@
     
     
     
-    <body dir="ltr" data-md-color-scheme="" data-md-color-primary="none" data-md-color-accent="none">
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
   
     
     
@@ -311,7 +315,7 @@
             <article class="md-content__inner md-typeset">
               
                 
-  <a href="https://github.com/kraken-build/kraken-cli/edit/master/docs/index.md" title="Edit this page" class="md-content__button md-icon">
+  <a href="https://github.com/kraken-build/kraken-cli/blob/develop/docs/content/index.md" title="Edit this page" class="md-content__button md-icon">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
   </a>
 
@@ -326,7 +330,7 @@
 <li>manage a separate Python virtual environment with build time dependencies to ensure consistent, repeatable builds (see <a href="buildenv/">Build Environment</a>)</li>
 </ul>
 <h2 id="synopsis">Synopsis</h2>
-<pre><code>$ kraken
+<div class="highlight"><pre><span></span><code>$ kraken
 usage: kraken [-h] [--version] [{run,fmt,lint,build,test,ls,query,describe,env}] ...
 
 positional arguments:
@@ -335,7 +339,7 @@ positional arguments:
 
 options:
   -h, --help                                       show this help message and exit
-  --version                                        show program's version number and exit
+  --version                                        show program&#39;s version number and exit
 
 subcommands:
   run                                              execute one or more kraken tasks
@@ -347,8 +351,8 @@ subcommands:
   query                                            perform queries on the build graph
   describe                                         describe one or more tasks in detail
   env                                              manage the build environment
-</code></pre>
-<pre><code>$ kraken env
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>$ kraken env
 usage: kraken env [-h] [{status,install,upgrade,lock,remove}] ...
 
 positional arguments:
@@ -364,13 +368,18 @@ subcommands:
   upgrade                               upgrade the build environment and lock file
   lock                                  create or update the lock file
   remove                                remove the build environment
-</code></pre>
+</code></pre></div>
 
               
             </article>
             
           </div>
         </div>
+        
+          <a href="#" class="md-top md-icon" data-md-component="top" hidden>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+            Back to top
+          </a>
         
       </main>
       
@@ -417,7 +426,7 @@ subcommands:
     <div class="md-dialog" data-md-component="dialog">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
-    <script id="__config" type="application/json">{"base": ".", "features": [], "search": "assets/javascripts/workers/search.b97dbffb.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": ".", "features": ["navigation.indexes", "navigation.instant", "navigation.sections", "navigation.tracking", "navigation.top", "toc.follow"], "search": "assets/javascripts/workers/search.b97dbffb.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.config.lang": "en", "search.config.pipeline": "trimmer, stopWordFilter", "search.config.separator": "[\\s\\-]+", "search.placeholder": "Search", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version.title": "Select version"}}</script>
     
     
       <script src="assets/javascripts/bundle.6c7ad80a.min.js"></script>
