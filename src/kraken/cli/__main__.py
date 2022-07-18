@@ -7,8 +7,6 @@ import subprocess as sp
 
 # import profile
 import sys
-from distutils.command.build_ext import build_ext
-from fcntl import lockf
 from pathlib import Path
 from typing import Any, cast
 

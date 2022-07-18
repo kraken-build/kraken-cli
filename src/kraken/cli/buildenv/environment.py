@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .inspect import get_environment_state_of_interpreter
 from .lockfile import Lockfile, LockfileMetadata
-from .requirements import LocalRequirement, RequirementSpec, parse_requirement
+from .requirements import RequirementSpec, parse_requirement
 
 logger = logging.getLogger(__name__)
 
