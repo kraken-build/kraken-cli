@@ -37,7 +37,7 @@ mypy = "*"
 pytest = "*"
 
 [tool.poetry.extras]
-docs = ["mkdocs = ^1.3.0", "mkdocs-material = ^8.3.9"]
+docs = ["mkdocs", "mkdocs-material", "novella==0.2.3"]
 
 [tool.poetry.scripts]
 kraken = "kraken.cli.__main__:_entrypoint"
@@ -55,7 +55,8 @@ flake8 = "flake8 src/"
 
 [tool.slap.run]
 fmt = "black src/ && isort src/"
-"docs:build" = "cd docs && mkdocs build"
+"docs:build" = "cd docs && novella --base-url kraken-cli/"
+"docs:dev" = "cd docs && novella --serve"
 
 [tool.mypy]
 python_version = "3.7"
