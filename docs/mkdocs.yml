@@ -1,0 +1,3 @@
+site_name: Kraken CLI
+docs_dir: content
+theme: material
