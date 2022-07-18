@@ -1,0 +1,5 @@
+[[entries]]
+id = "4a791bd8-fc48-42ed-bf72-0c56aa8c25b3"
+type = "improvement"
+description = "add INFO log when KRAKEN_MANAGED=1 is set"
+author = "@NiklasRosenstein"

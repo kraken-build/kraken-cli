@@ -100,7 +100,10 @@ class BuildAwareCommand(Command):
     def in_build_environment(self) -> bool:
         """Returns `True` if we're currently situated inside a build environment."""
 
-        return os.getenv("KRAKEN_MANAGED") == "1"
+        if os.getenv("KRAKEN_MANAGED") == "1":
+            logger.info("found KRAKEN_MANAGED=1, current environment is considered the build environment")
+            return True
+        return False
 
     def get_build_environment(self, args: Args) -> BuildEnvironment:
         """Returns the handle to manage the build environment."""
