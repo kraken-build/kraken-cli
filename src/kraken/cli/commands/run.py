@@ -34,14 +34,16 @@ class RunCommand(BuildGraphCommand):
         return super().resolve_tasks(args, context)
 
     def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> int | None:  # type: ignore
-        graph.trim()
-        if not graph:
-            print("error: no tasks selected", file=sys.stderr)
-            return 1
-        if not args.skip_build:
+        if args.skip_build:
+            print(colored("Skipped build due to %s flag" % (colored("-s,--skip-build", attrs=["bold"]),), "blue"))
+        else:
+            graph.trim()
+            if not graph:
+                print(colored("Error: no tasks were selected", "red"), file=sys.stderr)
+                return 1
             try:
                 context.execute(graph, args.verbose)
             except BuildError as exc:
-                print(colored("Error: %s" % (exc,), "red"))
+                print(colored("Error: %s" % (exc,), "red"), file=sys.stderr)
                 return 1
         return 0
