@@ -3,3 +3,9 @@ id = "42bc15d4-d36b-424a-9282-b38ed4706f0f"
 type = "improvement"
 description = "improve output of CLI when bootstrapping a build environment"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "9590d934-da49-496e-8da7-898276b53b89"
+type = "improvement"
+description = "bump requirement on kraken-core to `^0.3.0`"
+author = "@NiklasRosenstein"
