@@ -69,7 +69,7 @@ class EnvUpgradeCommand(BaseEnvCommand):
         build_env = self.get_build_environment(args)
         project = self.get_project_interface(args)
         self.install(build_env, project, True)
-        if project.has_lock_file():
+        if project.get_lock_file().exists():
             self.write_lock_file(build_env, project)
 
 
