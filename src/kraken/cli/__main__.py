@@ -425,8 +425,8 @@ class EnvInstallCommand(BaseEnvCommand):
         self.install(build_env, project)
 
 
-class EnvUpdateCommand(BaseEnvCommand):
-    """update the build environment and the lock file"""
+class EnvUpgradeCommand(BaseEnvCommand):
+    """upgrade the build environment and lock file"""
 
     def execute(self, args: Any) -> None:
         super().execute(args)
@@ -438,7 +438,7 @@ class EnvUpdateCommand(BaseEnvCommand):
 
 
 class EnvLockCommand(BaseEnvCommand):
-    """write the lock file"""
+    """create or update the lock file"""
 
     def execute(self, args: Any) -> None:
         super().execute(args)
@@ -448,6 +448,8 @@ class EnvLockCommand(BaseEnvCommand):
 
 
 class EnvRemoveCommand(BaseEnvCommand):
+    """remove the build environment"""
+
     def execute(self, args: BuildAwareCommand.Args) -> int | None:
         super().execute(args)
         build_env = self.get_build_environment(args)
@@ -466,7 +468,7 @@ def _main() -> None:
     env = Group("manage the build environment")
     env.add_command("status", EnvStatusCommand())
     env.add_command("install", EnvInstallCommand())
-    env.add_command("update", EnvUpdateCommand())
+    env.add_command("upgrade", EnvUpgradeCommand())
     env.add_command("lock", EnvLockCommand())
     env.add_command("remove", EnvRemoveCommand())
 
