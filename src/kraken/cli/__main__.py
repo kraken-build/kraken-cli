@@ -10,8 +10,9 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
-from kraken.core.build_context import BuildContext
+from kraken.core.build_context import BuildContext, BuildError
 from kraken.core.build_graph import BuildGraph
+from kraken.core.executor import COLORS_BY_STATUS, TaskStatus, get_task_status
 from kraken.core.property import Property
 from kraken.core.task import Task
 from slap.core.cli import CliApp, Command, Group
@@ -231,16 +232,17 @@ class RunCommand(BuildGraphCommand):
         return super().resolve_tasks(args, context)
 
     def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: Args) -> int | None:  # type: ignore
-        from .executor import Executor
-
         graph.trim()
         if not graph:
             print("error: no tasks selected", file=sys.stderr)
             return 1
-
         if not args.skip_build:
-            return Executor(graph, args.verbose).execute()
-        return None
+            try:
+                context.execute(graph, True)
+            except BuildError as exc:
+                logger.error("%s", exc)
+                return 1
+        return 0
 
 
 class LsCommand(BuildGraphCommand):
@@ -307,8 +309,6 @@ class QueryCommand(BuildGraphCommand):
         return super().execute(args)
 
     def execute_with_graph(self, context: BuildContext, graph: BuildGraph, args: Args) -> int | None:  # type: ignore
-        from .executor import Executor, TaskStatus, get_task_status
-
         if args.is_up_to_date:
             tasks = list(graph.tasks(required_only=True))
             print(f"querying status of {len(tasks)} task(s)")
@@ -320,7 +320,7 @@ class QueryCommand(BuildGraphCommand):
                 if task not in tasks:
                     continue
                 status = get_task_status(task)
-                print(" ", task.path, colored(status.name, Executor.COLORS_BY_STATUS[status]))
+                print(" ", task.path, colored(status.name, COLORS_BY_STATUS[status]))
                 if status in (TaskStatus.SKIPPABLE, TaskStatus.UP_TO_DATE):
                     up_to_date += 1
                 else:
@@ -339,7 +339,7 @@ class QueryCommand(BuildGraphCommand):
                     TaskStatus.QUEUED: "the task needs to run always or it cannot determine its up to date status",
                 }
                 for status in TaskStatus:
-                    print(colored(status.name.rjust(12), Executor.COLORS_BY_STATUS[status]) + ":", help_text[status])
+                    print(colored(status.name.rjust(12), COLORS_BY_STATUS[status]) + ":", help_text[status])
 
             exit_code = 0 if need_to_run == 0 else 1
             print()
