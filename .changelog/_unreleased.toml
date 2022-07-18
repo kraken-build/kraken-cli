@@ -1,0 +1,5 @@
+[[entries]]
+id = "00442bff-5098-4760-a7dd-4b913b679192"
+type = "improvement"
+description = "left justify logger level instead of right justify"
+author = "@NiklasRosenstein"
