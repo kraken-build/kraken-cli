@@ -17,6 +17,11 @@ class ProjectInterface(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def has_lock_file(self) -> bool:
+
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def read_lock_file(self) -> Lockfile | None:
         """Return the lock file in the project."""
 
@@ -30,19 +35,10 @@ class ProjectInterface(abc.ABC):
 
 
 class DefaultProjectImpl(ProjectInterface):
-    """This implementation looks for requirements in the following way:
+    """The default implementation for looking up project build requirements and reading/writing lockfiles.
 
-    * Load `.kraken/requirements.txt` or `.kraken.requirements.txt`
-    * Otherwise find a build script using the Kraken Core loaders interface and load the requirements from the first
-        comment block (see :class:`parse_requirements_from_python_script`).
-
-    The Kraken lock file will, if it exists, be loaded from the following locations:
-
-    * `.kraken/lock.json` or `.kraken.lock.json`
-
-    If it does not exist, it will be placed next to the build script if it exists in a `.kraken` folder, otherwise
-    into the project root as `.kraken.lock.json`.
-    """
+    Buildscript requirements are looked up in the `.kraken.py` header if prefixed with the string `# ::requirements`.
+    Lockfiles are written to a file named `.kraken.lock`."""
 
     REQUIREMENT_FILES = [Path(".kraken/requirements.txt"), Path(".kraken.requirements")]
     LOCK_FILES = [Path(".kraken/kraken.lock"), Path(".kraken.lock")]
@@ -53,8 +49,9 @@ class DefaultProjectImpl(ProjectInterface):
         script: Path | None
         lock: Path
 
-    def __init__(self, project_dir: Path | None = None) -> None:
+    def __init__(self, project_dir: Path | None = None, implied_requirements: list[str] | None = None) -> None:
         self.project_dir = project_dir or Path.cwd()
+        self._implied_requirements = implied_requirements or []
         self._files: DefaultProjectImpl.Files | None = None
 
     def _get_files(self) -> Files:
@@ -102,12 +99,18 @@ class DefaultProjectImpl(ProjectInterface):
         files = self._get_files()
         if files.requirements:
             with files.requirements.open() as fp:
-                return RequirementSpec.from_args(parse_requirements_file(fp))
+                requirements = RequirementSpec.from_args(parse_requirements_file(fp))
         elif files.script:
             with files.script.open() as fp:
-                return RequirementSpec.from_args(parse_requirements_from_python_script(fp))
+                requirements = RequirementSpec.from_args(parse_requirements_from_python_script(fp))
         else:
             assert False, files
+        requirements.add_requirements(self._implied_requirements)
+        return requirements
+
+    def has_lock_file(self) -> bool:
+        files = self._get_files()
+        return files.lock is not None and files.lock.exists()
 
     def read_lock_file(self) -> Lockfile | None:
         files = self._get_files()

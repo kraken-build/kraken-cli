@@ -48,7 +48,7 @@ def get_environment_state_of_interpreter(python_bin: str) -> EnvironmentState:
     and its dependencies installed."""
 
     code = (
-        "import json; from kraken.cli.locking.inspect import get_environment_state; "
+        f"import json; from {__name__} import get_environment_state; "
         "print(json.dumps(get_environment_state().to_json()))"
     )
     return EnvironmentState.from_json(json.loads(subprocess.check_output([python_bin, "-c", code]).decode()))

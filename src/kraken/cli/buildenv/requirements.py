@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import hashlib
 import re
 import shlex
 from pathlib import Path
@@ -104,6 +105,11 @@ class RequirementSpec:
         if with_requirements:
             args += [str(x) if isinstance(x, (str, Requirement)) else str(x.path) for x in self.requirements]
         return args
+
+    def to_hash(self, algorithm: str = "sha256") -> str:
+        """Hash the requirements spec to a hexdigest."""
+
+        return hashlib.new(algorithm, ":".join(self.to_args()).encode()).hexdigest()
 
 
 def parse_requirements_file(file: TextIO) -> list[str]:

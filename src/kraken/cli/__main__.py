@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import subprocess as sp
 
 # import profile
 import sys
+from distutils.command.build_ext import build_ext
+from fcntl import lockf
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from kraken.core.build_context import BuildContext
 from kraken.core.build_graph import BuildGraph
@@ -15,19 +19,63 @@ from kraken.core.task import Task
 from slap.core.cli import CliApp, Command, Group
 from termcolor import colored
 
-from kraken.cli.buildenv.environment import EnvironmentManager
-from kraken.cli.buildenv.project import DefaultProjectImpl
+from kraken.cli.buildenv.environment import BuildEnvironment
+from kraken.cli.buildenv.project import DefaultProjectImpl, ProjectInterface
 
 from . import __version__
 
 logger = logging.getLogger(__name__)
 
 
+def get_implied_requirements(develop: bool) -> list[str]:
+    """Returns a list of requirements that are implied for build environments managed by Kraken CLI.
+
+    :param develop: If set to `True`, it is assumed that the current Kraken CLI is installed in develop mode
+        using `slap link` or `slap install --link` and will be installed from the local project directory on
+        the file system instead of from PyPI. Otherwise, Kraken CLI will be picked up from PyPI.
+    """
+
+    if develop:
+        import kraken.cli
+
+        init_path = Path(kraken.cli.__file__).resolve()
+        kraken_path = init_path.parent.parent.parent
+        project_root = kraken_path.parent
+        pyproject = project_root / "pyproject.toml"
+        if not pyproject.is_file():
+            raise RuntimeError(
+                "kraken-cli does not seem to be installed in development mode (expected kraken-cli's "
+                'pyproject.toml at "%s")' % pyproject
+            )
+
+        # TODO (@NiklasRosenstein): It would be nice if we could tell Pip to install kraken-cli in
+        #       development mode, but `pip install -e DIR` does not currently work for projects using
+        #       Poetry.
+        return [f"kraken-cli@{project_root}"]
+
+    # Determine the next Kraken CLI release that may ship with breaking changes.
+    version: tuple[int, int, int] = cast(Any, tuple(map(int, __version__.split("."))))
+    if version[0] == 0:
+        # While we're in 0 major land, let's assume potential breaks with the next minor version.
+        breaking_version = f"0.{version[1]+1}.0"
+    else:
+        breaking_version = f"{version[0]}.0.0"
+
+    return [f"kraken-cli>={__version__},<{breaking_version}"]
+
+
 class BuildAwareCommand(Command):
-    """Base class for commands that are aware of a build directory and the environment manager."""
+    """A build aware command is aware of the build environment and provides the capabilities to dispatch the
+    same command to the same command inside the build environment.
+
+    It serves as the base command for all Kraken commands as they either need to dispatch to the build environment
+    or manage it."""
 
     class Args:
+        verbose: bool
+        quiet: bool
         build_dir: Path
+        project_dir: Path
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
@@ -41,11 +89,85 @@ class BuildAwareCommand(Command):
             default=Path(".build"),
             help="the build directory to write to [default: %(default)s]",
         )
+        parser.add_argument(
+            "-p",
+            "--project-dir",
+            metavar="PATH",
+            type=Path,
+            default=Path.cwd(),
+            help="the root project directory [default: ./]",
+        )
 
-    def get_environment_manager(self, args: Args) -> EnvironmentManager:
-        return EnvironmentManager(args.build_dir / "buildenv", DefaultProjectImpl(Path.cwd()))
+    def in_build_environment(self) -> bool:
+        """Returns `True` if we're currently situated inside a build environment."""
 
-    def execute(self, args: Any) -> int | None:
+        return os.getenv("KRAKEN_MANAGED") == "1"
+
+    def get_build_environment(self, args: Args) -> BuildEnvironment:
+        """Returns the handle to manage the build environment."""
+
+        return BuildEnvironment(args.build_dir / "venv")
+
+    def get_project_interface(self, args: Args) -> ProjectInterface:
+        """Returns the implementation that deals with project specific data such as build requirements and
+        lock files on disk."""
+
+        develop = os.getenv("KRAKEN_DEVELOP") == "1"
+        implied_requirements = get_implied_requirements(develop)
+        return DefaultProjectImpl(args.project_dir, implied_requirements)
+
+    def install(self, build_env: BuildEnvironment, project: ProjectInterface, upgrade: bool = False) -> None:
+        """Make sure that the build environment exists and the requirements are installed.
+
+        :param build_env: The build environment to ensure is up to date.
+        :param project: Implementation that provides access to the requirement spec and lockfile.
+        :param upgrade: If set to `True`, ignore the lockfile and reinstall requirement spec.
+        """
+
+        if not build_env.exists():
+            logger.info("creating build environment (%s)", build_env.path)
+            build_env.create(None)
+
+        # NOTE (@NiklasRosenstein): This requirement spec will already contain the implied Kraken CLI requirement.
+        requirements = project.get_requirement_spec()
+
+        if not upgrade:
+            lockfile = project.read_lock_file()
+            if lockfile is not None:
+                if lockfile.requirements.to_hash() != requirements.to_hash():
+                    logger.warning("lockfile appears to be outdated compared to project build requirements.")
+                    logger.warning("    you should consider re-locking using the `kraken env lock` command.")
+
+                if lockfile.requirements.to_hash() != build_env.hash:
+                    logger.info("environment is outdated compared to lockfile")
+                    build_env.install_lockfile(lockfile)
+                    build_env.hash = lockfile.requirements.to_hash()
+                    return
+
+        if requirements.to_hash() != build_env.hash or upgrade:
+            logger.info("installing requirements into build environment (%s)", build_env.path)
+            build_env.install_requirements(requirements, upgrade)
+            return
+
+        logger.info("build environment is up to date")
+
+    def dispatch_to_build_environment(self, args: Args) -> int:
+        """Dispatch to the build environment."""
+
+        if self.in_build_environment():
+            raise RuntimeError("cannot dispatch if we're already inside the build environment")
+
+        build_env = self.get_build_environment(args)
+        project = self.get_project_interface(args)
+        self.install(build_env, project)
+
+        logger.info("dispatching to virtual environment %s", build_env.path)
+        kraken_cli = build_env.get_program("kraken")
+        env = os.environ.copy()
+        env["KRAKEN_MANAGED"] = "1"
+        return sp.call([str(kraken_cli)] + sys.argv[1:], env=env)
+
+    def execute(self, args: Args) -> int | None:
         logging.basicConfig(
             level=logging.INFO if args.verbose else logging.ERROR if args.quiet else logging.WARNING,
             format=f"{colored('%(levelname)7s', 'magenta')} | {colored('%(name)s', 'blue')} | "
@@ -59,8 +181,6 @@ class BuildGraphCommand(BuildAwareCommand):
 
     class Args(BuildAwareCommand.Args):
         file: Path | None
-        verbose: bool
-        quiet: bool
         targets: list[str]
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
@@ -70,13 +190,11 @@ class BuildGraphCommand(BuildAwareCommand):
     def resolve_tasks(self, args: Args, context: BuildContext) -> list[Task]:
         return context.resolve_tasks(args.targets or None)
 
-    def execute(self, args: Args) -> int | None:
+    def execute(self, args: Args) -> int | None:  # type: ignore[override]
         super().execute(args)
-        manager = self.get_environment_manager(args)
-        if not manager.are_we_in():
-            if manager.check_outdated():
-                manager.install()
-            return manager.dispatch(sys.argv[1:])
+
+        if not self.in_build_environment():
+            return self.dispatch_to_build_environment(args)
 
         context = BuildContext(args.build_dir)
         context.load_project(None, Path.cwd())
@@ -186,7 +304,7 @@ class QueryCommand(BuildGraphCommand):
         parser.add_argument("--legend", action="store_true", help="print out a legend along with the query result")
         parser.add_argument("--is-up-to-date", action="store_true", help="query if the selected task(s) are up to date")
 
-    def execute(self, args: BuildGraphCommand.Args) -> int | None:
+    def execute(self, args: BuildGraphCommand.Args) -> int | None:  # type: ignore[override]
         args.quiet = True
         return super().execute(args)
 
@@ -264,55 +382,84 @@ class DescribeCommand(BuildGraphCommand):
 
 
 class EnvStatusCommand(BuildAwareCommand):
-    """ provide the status of the build environment"""
+    """provide the status of the build environment"""
 
     def execute(self, args: Any) -> None:
-        manager = self.get_environment_manager(args)
-        if manager.are_we_in():
+        super().execute(args)
+        if self.in_build_environment():
             self.get_parser().error("`kraken env` commands cannot be used inside managed enviroment")
-        print('environment path:', manager.env_dir, "(does not exist)" if not manager.exists() else "")
-        print("outdated" if manager.check_outdated() else "up to date")
+
+        build_env = self.get_build_environment(args)
+        project = self.get_project_interface(args)
+        requirements = project.get_requirement_spec()
+        lockfile = project.read_lock_file()
+
+        print(" environment path:", build_env.path, "" if build_env.exists() else "(does not exist)")
+        print(" environment hash:", build_env.hash)
+        print("requirements hash:", requirements.to_hash())
+        print("    lockfile hash:", lockfile.requirements.to_hash() if lockfile else None)
 
 
-class EnvInstallCommand(BuildAwareCommand):
-    """ ensure the build environment is installed"""
+class BaseEnvCommand(BuildAwareCommand):
+    def write_lock_file(self, build_env: BuildEnvironment, project: ProjectInterface) -> None:
+        result = build_env.calculate_lockfile(project.get_requirement_spec())
+        if result.extra_distributions:
+            logger.warning(
+                "build environment contains distributions that are not required: %s",
+                result.extra_distributions,
+            )
+        project.write_lock_file(result.lockfile)
+
+    def execute(self, args: BuildAwareCommand.Args) -> int | None:
+        super().execute(args)
+        if self.in_build_environment():
+            self.get_parser().error("`kraken env` commands cannot be used inside managed enviroment")
+        return None
+
+
+class EnvInstallCommand(BaseEnvCommand):
+    """ensure the build environment is installed"""
 
     def execute(self, args: Any) -> None:
-        manager = self.get_environment_manager(args)
-        if manager.are_we_in():
-            self.get_parser().error("`kraken env` commands cannot be used inside managed enviroment")
-        if manager.exists() and not manager.check_outdated():
-            print("build environment is up to date")
+        super().execute(args)
+        build_env = self.get_build_environment(args)
+        project = self.get_project_interface(args)
+        self.install(build_env, project)
+
+
+class EnvUpdateCommand(BaseEnvCommand):
+    """update the build environment and the lock file"""
+
+    def execute(self, args: Any) -> None:
+        super().execute(args)
+        build_env = self.get_build_environment(args)
+        project = self.get_project_interface(args)
+        self.install(build_env, project, True)
+        if project.has_lock_file():
+            self.write_lock_file(build_env, project)
+
+
+class EnvLockCommand(BaseEnvCommand):
+    """write the lock file"""
+
+    def execute(self, args: Any) -> None:
+        super().execute(args)
+        build_env = self.get_build_environment(args)
+        project = self.get_project_interface(args)
+        self.write_lock_file(build_env, project)
+
+
+class EnvRemoveCommand(BaseEnvCommand):
+    def execute(self, args: BuildAwareCommand.Args) -> int | None:
+        super().execute(args)
+        build_env = self.get_build_environment(args)
+        if build_env.exists():
+            logger.info("removing build environment (%s)", build_env.path)
+            build_env.remove()
+            return 0
         else:
-            print("updating" if manager.exists() else "creating", "build environment")
-            manager.install(args.update)
-
-
-class EnvUpdateCommand(BuildAwareCommand):
-    """ update the build environment and the lock file"""
-
-    def execute(self, args: Any) -> None:
-        manager = self.get_environment_manager(args)
-        if manager.are_we_in():
-            self.get_parser().error("`kraken env` commands cannot be used inside managed enviroment")
-        # TODO (@NiklasRosenstein): Use a slightly different wording to inform that we're updating it while
-        #       ignoring the lock file?
-        print("updating" if manager.exists() else "creating", "build environment")
-        manager.install(True)
-
-
-class EnvLockCommand(BuildAwareCommand):
-    """ write the lock file"""
-
-    def execute(self, args: Any) -> None:
-        manager = self.get_environment_manager(args)
-        if manager.are_we_in():
-            self.get_parser().error("`kraken env` commands cannot be used inside managed enviroment")
-        if not manager.exists():
-            self.get_parser().error("build environment does not exist")
-        if manager.check_outdated():
-            logger.warning("build environment is outdated with requirement spec")
-        manager.lock()
+            print("build environment does not exist")
+            return 1
 
 
 def _main() -> None:
@@ -323,6 +470,7 @@ def _main() -> None:
     env.add_command("install", EnvInstallCommand())
     env.add_command("update", EnvUpdateCommand())
     env.add_command("lock", EnvLockCommand())
+    env.add_command("remove", EnvRemoveCommand())
 
     app = CliApp("kraken", f"cli: {__version__}, core: {core.__version__}", features=[])
     app.add_command("run", RunCommand())
