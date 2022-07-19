@@ -1,0 +1,5 @@
+[[entries]]
+id = "5d81a5aa-4524-4173-a953-d2ea708b8725"
+type = "fix"
+description = "fix an error when warning about extra distributions in `kraken env lock`, add a print when writing to the lock file, add some logic to normalize distribution names when parsing through the distribution requirements graph (this allows `Jinja2` to be understood as a requirement when `jinja2` (lowercase) was listed in the spec)"
+author = "@NiklasRosenstein"

@@ -141,11 +141,15 @@ class BuildEnvironment:
         python = self.get_program("python")
         env = get_environment_state_of_interpreter(str(python))
 
+        # Convert all distribution names to lowercase.
+        # TODO (@NiklasRosenstein): Further changes may be needed to correctly normalize all distribution names.
+        env.distributions = {k.lower(): v for k, v in env.distributions.items()}
+
         # Collect only the package name and version for required packages.
         distributions = {}
         stack = list(requirements.requirements)
         while stack:
-            package_name = stack.pop(0).name
+            package_name = stack.pop(0).name.lower()
             if package_name in distributions:
                 continue
             if package_name not in env.distributions:

@@ -33,12 +33,14 @@ class EnvStatusCommand(BuildAwareCommand):
 class BaseEnvCommand(BuildAwareCommand):
     def write_lock_file(self, build_env: BuildEnvironment, project: ProjectInterface) -> None:
         result = build_env.calculate_lockfile(project.get_requirement_spec())
+        print(colored("Writing to lock file (%s)" % (colored(str(project.get_lock_file()), attrs=["bold"]),), "blue"))
         result.lockfile.write_to(project.get_lock_file())
         if result.extra_distributions:
             print(
                 colored(
                     "Warning: Your build environment contains %d distributions that are not required.\n"
-                    "         The offending distributions are: %s\n" % ", ".join(result.extra_distributions),
+                    "         The offending distributions are: %s\n"
+                    % (len(result.extra_distributions), ", ".join(result.extra_distributions)),
                     "yellow",
                 )
             )
@@ -79,6 +81,8 @@ class EnvLockCommand(BaseEnvCommand):
         super().execute(args)
         build_env = self.get_build_environment(args)
         project = self.get_project_interface(args)
+        if not build_env.exists():
+            self.install(build_env, project)
         self.write_lock_file(build_env, project)
 
 
