@@ -38,3 +38,14 @@ jobs:
     - uses: Cecilapp/GitHub-Pages-deploy@v3
       env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
       with: { email: rosensteinniklas@gmail.com, build_dir: docs/_site }
+
+  rebuild-kraken-base-image:
+    runs-on: ubuntu-latest
+    # if:
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.REPO_PAT }}
+          repository: kraken-build/kraken-base-image
+          event-type: rebuild
