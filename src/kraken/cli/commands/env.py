@@ -8,7 +8,7 @@ from kraken.cli.buildenv.environment import BuildEnvironment
 from kraken.cli.buildenv.lockfile import Lockfile
 from kraken.cli.buildenv.project import ProjectInterface
 
-from .base import BuildAwareCommand
+from .base import BuildAwareCommand, print
 
 
 class EnvStatusCommand(BuildAwareCommand):

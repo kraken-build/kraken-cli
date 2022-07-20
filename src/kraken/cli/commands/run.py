@@ -6,7 +6,7 @@ import sys
 from kraken.core import BuildError, Context, Task, TaskGraph
 from termcolor import colored
 
-from .base import BuildGraphCommand
+from .base import BuildGraphCommand, print
 
 
 class RunCommand(BuildGraphCommand):

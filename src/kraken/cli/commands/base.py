@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import builtins
 import logging
 import os
 import shlex
 import subprocess as sp
 import sys
+from functools import partial
 from pathlib import Path
 from typing import Any, cast
 
@@ -20,6 +22,7 @@ from kraken.cli.buildenv.project import DefaultProjectImpl, ProjectInterface
 
 DEFAULT_BUILD_DIR = Path("build")
 DEFAULT_PROJECT_DIR = Path(".")
+print = partial(builtins.print, flush=True)
 
 
 def get_implied_requirements(develop: bool) -> list[str]:

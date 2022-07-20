@@ -8,7 +8,7 @@ from kraken.core import Context, GroupTask, Property, Task, TaskGraph
 from kraken.core.executor import COLORS_BY_STATUS, TaskStatus, get_task_status
 from termcolor import colored
 
-from .base import BuildGraphCommand
+from .base import BuildGraphCommand, print
 
 
 class LsCommand(BuildGraphCommand):

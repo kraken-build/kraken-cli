@@ -1,0 +1,5 @@
+[[entries]]
+id = "8cc3199f-4d74-4cef-bf2e-bddfb986ecea"
+type = "improvement"
+description = "flush after print to ensure correct order in CI output"
+author = "@NiklasRosenstein"
