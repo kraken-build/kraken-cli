@@ -357,7 +357,14 @@ build script are installed.</p>
 file (if it exists). When read from a build script, the requirements must be at the top of the file. <strong>Example</strong>:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># ::requirements PyYAML kraken-std</span>
 <span class="c1"># ::requirements --extra-index-url https://test.pypi.org/simple</span>
+<span class="c1"># ::pythonpath ./build-support</span>
 </code></pre></div>
+<div class="admonition info">
+<p class="admonition-title">Info</p>
+<p>The <code>::requirements</code> and <code>::pythonpath</code> lines must be within the first single-line comment block at the top of
+the file. Using <code>::pythonpath</code>, you can specify a path relative to your project directory that should be added
+to <code>sys.path</code> when executing your build script.</p>
+</div>
 <p>Using the <code>kraken env lock</code> or <code>kraken env update</code> command will write a lock file named <strong><code>.kraken.lock</code></strong> that is a
 JSON file containing the exact installed versions.</p>
 <p>Below is a summary of Kraken CLI's behaviour for several commands with respect to the build environment:</p>
