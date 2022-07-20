@@ -5,7 +5,6 @@ import dataclasses
 import hashlib
 import re
 import shlex
-from ast import MatchClass
 from pathlib import Path
 from typing import Any, Iterable, TextIO
 
