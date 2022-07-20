@@ -367,21 +367,21 @@ subcommands:
   describe                                        describe one or more tasks in detail
   env                                             manage the build environment
 </code></pre></div>
-<div class="highlight"><span class="filename">$ kraken env --help</span><pre><span></span><code>usage: kraken env [-h] [{status,install,upgrade,lock,remove}] ...
+<div class="highlight"><span class="filename">$ kraken env --help</span><pre><span></span><code>usage: kraken env [-h] [{info,install,upgrade,lock,remove}] ...
 
 positional arguments:
-  {status,install,upgrade,lock,remove}  the subcommand to execute
-  ...                                   arguments for the subcommand
+  {info,install,upgrade,lock,remove}  the subcommand to execute
+  ...                                 arguments for the subcommand
 
 options:
-  -h, --help                            show this help message and exit
+  -h, --help                          show this help message and exit
 
 subcommands:
-  status                                provide the status of the build environment
-  install                               ensure the build environment is installed
-  upgrade                               upgrade the build environment and lock file
-  lock                                  create or update the lock file
-  remove                                remove the build environment
+  info                                provide the info on the build environment
+  install                             ensure the build environment is installed
+  upgrade                             upgrade the build environment and lock file
+  lock                                create or update the lock file
+  remove                              remove the build environment
 </code></pre></div>
 
               
