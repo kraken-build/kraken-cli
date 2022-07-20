@@ -1,0 +1,8 @@
+[[entries]]
+id = "e813d11a-dc97-4dfe-b1a7-a2375ee41589"
+type = "improvement"
+description = "print Pip install logs if installing build environment fails (close #3)"
+author = "@NiklasRosenstein"
+issues = [
+    "https://github.com/kraken-build/kraken-cli/issues/3",
+]

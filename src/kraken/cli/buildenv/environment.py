@@ -3,13 +3,16 @@ the requirements in place."""
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
+import datetime
 import logging
 import os
 import shutil
 import subprocess as sp
 import sys
 from pathlib import Path
+from typing import Iterator, TextIO
 
 from .inspect import get_environment_state_of_interpreter
 from .lockfile import Lockfile, LockfileMetadata
@@ -120,7 +123,7 @@ class BuildEnvironment:
         logger.info("%s", command)
         if upgrade:
             command += ["--upgrade"]
-        with self._install_log_file.open("a") as fp:
+        with self._open_logfile_and_print_delta_on_error() as fp:
             sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
         self._install_pythonpath(requirements.pythonpath)
 
@@ -131,7 +134,7 @@ class BuildEnvironment:
 
         python = self.get_program("python")
         command = [str(python), "-m", "pip", "install", "--upgrade"] + lockfile.to_args(self._project_path)
-        with self._install_log_file.open("a") as fp:
+        with self._open_logfile_and_print_delta_on_error() as fp:
             sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
         self._install_pythonpath(lockfile.requirements.pythonpath)
 
@@ -144,6 +147,23 @@ class BuildEnvironment:
         site_packages = Path(sp.check_output(command).decode().strip())
         pth_file = site_packages / "kraken-cli.pth"
         pth_file.write_text("\n".join(str((self._project_path / path).absolute()) for path in pythonpath))
+
+    @contextlib.contextmanager
+    def _open_logfile_and_print_delta_on_error(self) -> Iterator[TextIO]:
+        """A context manager to open the environment log file and return it. If an error occurs inside the context
+        manager, the delta (everything that was appended since the file was opened) will be printed to stderr."""
+
+        with self._install_log_file.open("a") as fp:
+            print(f"\n[{datetime.datetime.utcnow()} UTC]", file=fp, flush=True)
+            start_index = fp.tell()
+            try:
+                yield fp
+            except Exception:
+                fp.close()
+                with self._install_log_file.open("r") as fp:
+                    fp.seek(start_index)
+                    print(fp.read(), file=sys.stderr)
+                raise
 
     def calculate_lockfile(self, requirements: RequirementSpec) -> CalculateLockfileResult:
         """Calculate the lockfile of the environment.
