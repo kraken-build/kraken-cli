@@ -10,12 +10,12 @@ def _main() -> None:
     from kraken import core
 
     from . import __version__
-    from .commands.env import EnvInstallCommand, EnvLockCommand, EnvRemoveCommand, EnvStatusCommand, EnvUpgradeCommand
+    from .commands.env import EnvInfoCommand, EnvInstallCommand, EnvLockCommand, EnvRemoveCommand, EnvUpgradeCommand
     from .commands.inspection import DescribeCommand, LsCommand, QueryCommand
     from .commands.run import RunCommand
 
     env = Group("manage the build environment")
-    env.add_command("status", EnvStatusCommand())
+    env.add_command("info", EnvInfoCommand())
     env.add_command("install", EnvInstallCommand())
     env.add_command("upgrade", EnvUpgradeCommand())
     env.add_command("lock", EnvLockCommand())

@@ -3,3 +3,12 @@ id = "8cc3199f-4d74-4cef-bf2e-bddfb986ecea"
 type = "improvement"
 description = "flush after print to ensure correct order in CI output"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "a629d1eb-4e32-4045-8eeb-74e162a5e9aa"
+type = "feature"
+description = "Rename `kraken env status` command to `kraken env info` and add `-P,--path` argument to print only the path to the build environment if it exists"
+author = "@NiklasRosenstein"
+issues = [
+    "https://github.com/kraken-build/kraken-cli/issues/1",
+]

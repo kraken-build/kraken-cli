@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from typing import Any
 
 from termcolor import colored
@@ -11,15 +12,34 @@ from kraken.cli.buildenv.project import ProjectInterface
 from .base import BuildAwareCommand, print
 
 
-class EnvStatusCommand(BuildAwareCommand):
-    """provide the status of the build environment"""
+class EnvInfoCommand(BuildAwareCommand):
+    """provide the info on the build environment"""
 
-    def execute(self, args: Any) -> None:
+    class Args(BuildAwareCommand.Args):
+        path: bool
+
+    def init_parser(self, parser: argparse.ArgumentParser) -> None:
+        super().init_parser(parser)
+        parser.add_argument(
+            "-P",
+            "--path",
+            action="store_true",
+            help="print the path to the build environment, or nothing and return 1 if it does not exist.",
+        )
+
+    def execute(self, args: Args) -> int | None:  # type: ignore[override]
         super().execute(args)
         if self.in_build_environment():
             self.get_parser().error("`kraken env` commands cannot be used inside managed enviroment")
 
         build_env = self.get_build_environment(args)
+        if args.path:
+            if build_env.exists():
+                print(build_env.path.absolute())
+                return 0
+            else:
+                return 1
+
         project = self.get_project_interface(args)
         requirements = project.get_requirement_spec()
         lockfile = Lockfile.from_path(project.get_lock_file())
@@ -28,6 +48,7 @@ class EnvStatusCommand(BuildAwareCommand):
         print(" environment hash:", build_env.hash)
         print("requirements hash:", requirements.to_hash())
         print("    lockfile hash:", lockfile.requirements.to_hash() if lockfile else None)
+        return 0
 
 
 class BaseEnvCommand(BuildAwareCommand):
