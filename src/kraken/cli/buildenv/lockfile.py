@@ -103,12 +103,15 @@ class Lockfile:
             "pinned": self.pinned,
         }
 
-    def to_args(self) -> list[str]:
-        """Converts the pinned versions in the lock file to Pip install args."""
+    def to_args(self, base_dir: Path = Path(".")) -> list[str]:
+        """Converts the pinned versions in the lock file to Pip install args.
+
+        :param base_dir: The base directory that relative :class:`LocalRequirement`s should be considered relative to.
+        """
 
         args = self.requirements.to_args(with_requirements=False)
         local_dependencies = {
-            dep.name: dep.path for dep in self.requirements.requirements if isinstance(dep, LocalRequirement)
+            dep.name: base_dir / dep.path for dep in self.requirements.requirements if isinstance(dep, LocalRequirement)
         }
         for key, value in self.pinned.items():
             if key in local_dependencies:

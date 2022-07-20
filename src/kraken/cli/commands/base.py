@@ -104,7 +104,7 @@ class BuildAwareCommand(Command):
     def get_build_environment(self, args: Args) -> BuildEnvironment:
         """Returns the handle to manage the build environment."""
 
-        return BuildEnvironment(args.build_dir / "venv")
+        return BuildEnvironment(args.project_dir, args.build_dir / "venv")
 
     def get_project_interface(self, args: Args) -> ProjectInterface:
         """Returns the implementation that deals with project specific data such as build requirements and
@@ -169,7 +169,8 @@ class BuildAwareCommand(Command):
                     )
                     build_env.install_lockfile(lockfile)
                     build_env.hash = lockfile.requirements.to_hash()
-                    return
+
+                return
 
         if build_env.hash is not None and requirements.to_hash() != build_env.hash:
             print(
@@ -247,6 +248,12 @@ class BuildGraphCommand(BuildAwareCommand):
 
         if not self.in_build_environment():
             return self.dispatch_to_build_environment(args)
+
+        # NOTE (@NiklasRosenstein): If we're inside the build environment that is managed by Kraken, we could
+        #       skip this step, but if we're not (e.g. if the user manually sets KRAKEN_MANAGED=1), we still
+        #       need to update the path.
+        project = self.get_project_interface(args)
+        sys.path += [str((args.project_dir / path)) for path in project.get_requirement_spec().pythonpath]
 
         context = Context(args.build_dir)
         context.load_project(None, Path.cwd())

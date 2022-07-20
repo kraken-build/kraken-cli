@@ -44,10 +44,12 @@ class EnvInfoCommand(BuildAwareCommand):
         requirements = project.get_requirement_spec()
         lockfile = Lockfile.from_path(project.get_lock_file())
 
-        print(" environment path:", build_env.path, "" if build_env.exists() else "(does not exist)")
-        print(" environment hash:", build_env.hash)
         print("requirements hash:", requirements.to_hash())
         print("    lockfile hash:", lockfile.requirements.to_hash() if lockfile else None)
+        print(" environment hash:", build_env.hash)
+        print(" environment path:", build_env.path, "" if build_env.exists() else "(does not exist)")
+        print()
+        print(requirements)
         return 0
 
 

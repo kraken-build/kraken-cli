@@ -5,6 +5,7 @@ import dataclasses
 import hashlib
 import re
 import shlex
+from ast import MatchClass
 from pathlib import Path
 from typing import Any, Iterable, TextIO
 
@@ -47,6 +48,7 @@ class RequirementSpec:
     requirements: list[Requirement | LocalRequirement]
     index_url: str | None = None
     extra_index_urls: list[str] = dataclasses.field(default_factory=list)
+    pythonpath: list[str] = dataclasses.field(default_factory=list)
 
     def __post_init__(self) -> None:
         for req in self.requirements:
@@ -64,10 +66,11 @@ class RequirementSpec:
             requirements=[parse_requirement(x) for x in data["requirements"]],
             index_url=data.get("index_url"),
             extra_index_urls=data.get("extra_index_urls", []),
+            pythonpath=data.get("pythonpath", []),
         )
 
     def to_json(self) -> dict[str, Any]:
-        result: dict[str, Any] = {"requirements": [str(x) for x in self.requirements]}
+        result: dict[str, Any] = {"requirements": [str(x) for x in self.requirements], "pythonpath": self.pythonpath}
         if self.index_url is not None:
             result["index_url"] = self.index_url
         if self.extra_index_urls:
@@ -94,8 +97,12 @@ class RequirementSpec:
             parsed.extra_index_url or [],
         )
 
-    def to_args(self, with_requirements: bool = True) -> list[str]:
-        """Converts the requirements back to Pip install arguments."""
+    def to_args(self, base_dir: Path = Path("."), with_requirements: bool = True) -> list[str]:
+        """Converts the requirements back to Pip install arguments.
+
+        :param base_dir: The base directory that relative :class:`LocalRequirement`s should be considered relative to.
+        :param with_requirements: Can be set to `False` to not return requirements in the argument, just the index URLs.
+        """
 
         args = []
         if self.index_url:
@@ -103,48 +110,49 @@ class RequirementSpec:
         for url in self.extra_index_urls:
             args += ["--extra-index-url", url]
         if with_requirements:
-            args += [str(x) if isinstance(x, (str, Requirement)) else str(x.path) for x in self.requirements]
+            args += [str(x) if isinstance(x, (str, Requirement)) else str(base_dir / x.path) for x in self.requirements]
         return args
 
     def to_hash(self, algorithm: str = "sha256") -> str:
         """Hash the requirements spec to a hexdigest."""
 
-        return hashlib.new(algorithm, ":".join(self.to_args()).encode()).hexdigest()
+        hash_parts = self.to_args() + ["::pythonpath"] + self.pythonpath
+        return hashlib.new(algorithm, ":".join(hash_parts).encode()).hexdigest()
 
 
-def parse_requirements_file(file: TextIO) -> list[str]:
-    """Reads a `requirements.txt` file and returns a list of the Pip install arguments."""
-
-    result = []
-    for line in map(str.rstrip, file):
-        if line.startswith("#"):
-            continue
-        result += shlex.split(line)
-    return result
-
-
-def parse_requirements_from_python_script(file: TextIO) -> list[str]:
+def parse_requirements_from_python_script(file: TextIO) -> RequirementSpec:
     """Parses the requirements defined in a Python script.
 
     The Pip install arguments are extracted from all lines in the first single-line comment block, which has to start
-    at the beginning of the file, which start with the text `# ::requirements` (whitespace optional).
+    at the beginning of the file, which start with the text `# ::requirements` (whitespace optional). Additionally,
+    paths to ass to `sys.path` can be specified with `# ::pythonpath`.
 
     Example:
 
     ```py
     #!/usr/bin/env python
     # :: requirements PyYAML
+    # :: pythonpath ./build-support
     ```
 
-    When parsed, it produces `["PyYAML"]`.
+    The resulting :class:`RequirementSpec` will contain `["PyYAML"]` as requirement and `"./build-support"` ain
+    the Python path.
     """
 
-    result = []
+    requirements = []
+    pythonpath = []
     for line in map(str.rstrip, file):
         if not line.startswith("#"):
             break
-        match = re.match(r"#\s*::\s*requirements(.+)", line)
+        match = re.match(r"#\s*::\s*(requirements|pythonpath)(.+)", line)
         if not match:
             break
-        result += shlex.split(match.group(1))
+        args = shlex.split(match.group(2))
+        if match.group(1) == "requirements":
+            requirements += args
+        else:
+            pythonpath += args
+
+    result = RequirementSpec.from_args(requirements)
+    result.pythonpath = pythonpath
     return result

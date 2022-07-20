@@ -27,11 +27,13 @@ class CalculateLockfileResult:
 class BuildEnvironment:
     """Represents a separate Python environment that we install build time requirements into."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, project_path: Path, path: Path) -> None:
         """
+        :param project_path: The directory that relative paths should be assumed relative to.
         :param path: The directory at which the environment should be located.
         """
 
+        self._project_path = project_path
         self._path = path
         self._hash_file = path / ".hash"
         self._install_log_file = path / ".install-log"
@@ -114,12 +116,13 @@ class BuildEnvironment:
         """
 
         python = self.get_program("python")
-        command = [str(python), "-m", "pip", "install"] + requirements.to_args()
+        command = [str(python), "-m", "pip", "install"] + requirements.to_args(self._project_path)
         logger.info("%s", command)
         if upgrade:
             command += ["--upgrade"]
         with self._install_log_file.open("a") as fp:
             sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
+        self._install_pythonpath(requirements.pythonpath)
 
     def install_lockfile(self, lockfile: Lockfile) -> None:
         """Install requirements from a lockfile.
@@ -127,9 +130,20 @@ class BuildEnvironment:
         :param lockfile: The lockfile to install from."""
 
         python = self.get_program("python")
-        command = [str(python), "-m", "pip", "install", "--upgrade"] + lockfile.to_args()
+        command = [str(python), "-m", "pip", "install", "--upgrade"] + lockfile.to_args(self._project_path)
         with self._install_log_file.open("a") as fp:
             sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
+        self._install_pythonpath(lockfile.requirements.pythonpath)
+
+    def _install_pythonpath(self, pythonpath: list[str]) -> None:
+        """Installs the given list of paths by placing a `.pth` file into the environment."""
+
+        # TODO (@NiklasRosenstein): The path here might be different again on Windows.
+        python = self.get_program("python")
+        command = [str(python), "-c", "from sysconfig import get_path; print(get_path('purelib'))"]
+        site_packages = Path(sp.check_output(command).decode().strip())
+        pth_file = site_packages / "kraken-cli.pth"
+        pth_file.write_text("\n".join(str((self._project_path / path).absolute()) for path in pythonpath))
 
     def calculate_lockfile(self, requirements: RequirementSpec) -> CalculateLockfileResult:
         """Calculate the lockfile of the environment.

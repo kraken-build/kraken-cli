@@ -12,3 +12,12 @@ author = "@NiklasRosenstein"
 issues = [
     "https://github.com/kraken-build/kraken-cli/issues/1",
 ]
+
+[[entries]]
+id = "81539240-0eaa-4a60-b85b-17aa21c679ab"
+type = "feature"
+description = "add support for `# :: pythonpath` option in the Kraken build script"
+author = "@NiklasRosenstein"
+issues = [
+    "https://github.com/kraken-build/kraken-cli/issues/2",
+]
