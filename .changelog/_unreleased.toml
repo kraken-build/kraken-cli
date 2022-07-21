@@ -1,0 +1,5 @@
+[[entries]]
+id = "40ee62e7-1769-41fd-9974-8d2716e36334"
+type = "fix"
+description = "Pass `--no-input` option to `pip install` to fail immediately if the credentials for a package index are missing instead of prompting the user for username/password"
+author = "@NiklasRosenstein"

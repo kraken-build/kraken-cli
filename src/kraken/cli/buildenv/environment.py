@@ -119,7 +119,7 @@ class BuildEnvironment:
         """
 
         python = self.get_program("python")
-        command = [str(python), "-m", "pip", "install"] + requirements.to_args(self._project_path)
+        command = [str(python), "-m", "pip", "install", "--no-input"] + requirements.to_args(self._project_path)
         logger.info("%s", command)
         if upgrade:
             command += ["--upgrade"]
@@ -133,7 +133,8 @@ class BuildEnvironment:
         :param lockfile: The lockfile to install from."""
 
         python = self.get_program("python")
-        command = [str(python), "-m", "pip", "install", "--upgrade"] + lockfile.to_args(self._project_path)
+        command = [str(python), "-m", "pip", "install", "--no-input", "--upgrade"]
+        command += lockfile.to_args(self._project_path)
         with self._open_logfile_and_print_delta_on_error() as fp:
             sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
         self._install_pythonpath(lockfile.requirements.pythonpath)
