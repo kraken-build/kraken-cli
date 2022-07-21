@@ -3,8 +3,7 @@
 The Kraken CLI manages a separate build environment in which only the requirements needed for the execution of the
 build script are installed.
 
-The build requirements are read either from the `.kraken.py` build script of the root project, or from a `.kraken.req`
-file (if it exists). When read from a build script, the requirements must be at the top of the file. __Example__:
+The build requirements are read from the header of the `.kraken.py` build script of the root project. __Example__:
 
 ```py
 # ::requirements PyYAML kraken-std
@@ -17,6 +16,11 @@ file (if it exists). When read from a build script, the requirements must be at 
     The `::requirements` and `::pythonpath` lines must be within the first single-line comment block at the top of
     the file. Using `::pythonpath`, you can specify a path relative to your project directory that should be added
     to `sys.path` when executing your build script.
+
+!!! warning
+
+    The requirements listed in build scripts that are included as sub projects by the main build script are ignored,
+    thus collecting the dependencies of build scripts transitively is not currently supported.
 
 Using the `kraken env lock` or `kraken env update` command will write a lock file named **`.kraken.lock`** that is a
 JSON file containing the exact installed versions.
