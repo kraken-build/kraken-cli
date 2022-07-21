@@ -3,3 +3,9 @@ id = "40ee62e7-1769-41fd-9974-8d2716e36334"
 type = "fix"
 description = "Pass `--no-input` option to `pip install` to fail immediately if the credentials for a package index are missing instead of prompting the user for username/password"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "7e28d628-f3a3-4b4e-a7c3-894c455f81c5"
+type = "improvement"
+description = "No longer print warning if no build environment exists that the environment is outdated with the lockfile, instead just print \"Installing from lockfile\". Also move the warning if requirement spec has changed compared to lock file after the previous message"
+author = "@NiklasRosenstein"

@@ -145,6 +145,21 @@ class BuildAwareCommand(Command):
             lockfile_path = project.get_lock_file()
             lockfile = Lockfile.from_path(lockfile_path)
             if lockfile is not None:
+                if lockfile.requirements.to_hash() != build_env.hash:
+                    if build_env.hash is None:
+                        print(colored("Installing from lockfile ...", "blue"))
+                    else:
+                        print(
+                            colored(
+                                "Warning: Your build environment is outdated compared to your lockfile (%s).\n"
+                                "         Reinstalling from lockfile now ..."
+                                % (colored(str(lockfile_path), attrs=["bold"]),),
+                                "yellow",
+                            )
+                        )
+                    build_env.install_lockfile(lockfile)
+                    build_env.hash = lockfile.requirements.to_hash()
+
                 if lockfile.requirements.to_hash() != requirements.to_hash():
                     print(
                         colored(
@@ -157,18 +172,6 @@ class BuildAwareCommand(Command):
                             "yellow",
                         )
                     )
-
-                if lockfile.requirements.to_hash() != build_env.hash:
-                    print(
-                        colored(
-                            "Warning: Your build environment is outdated compared to your lockfile (%s).\n"
-                            "         Reinstalling from lockfile now ..."
-                            % (colored(str(lockfile_path), attrs=["bold"]),),
-                            "yellow",
-                        )
-                    )
-                    build_env.install_lockfile(lockfile)
-                    build_env.hash = lockfile.requirements.to_hash()
 
                 return
 
