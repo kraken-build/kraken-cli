@@ -86,7 +86,7 @@ class Lockfile:
 
     def write_to(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self.to_json(), indent=2))
+        path.write_text(json.dumps(self.to_json(), indent=2, sort_keys=True))
 
     @staticmethod
     def from_json(data: dict[str, Any]) -> Lockfile:
