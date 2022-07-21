@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-import json
 from pathlib import Path
 
-from .lockfile import Lockfile
 from .requirements import RequirementSpec, parse_requirements_from_python_script
 
 
