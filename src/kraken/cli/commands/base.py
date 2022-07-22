@@ -70,14 +70,14 @@ class BuildAwareCommand(Command):
     or manage it."""
 
     class Args:
-        verbose: bool
+        verbose: int
         quiet: bool
         build_dir: Path
         project_dir: Path
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
-        parser.add_argument("-v", "--verbose", action="store_true", help="always show task output and logs")
+        parser.add_argument("-v", "--verbose", action="count", help="always show task output and logs")
         parser.add_argument("-q", "--quiet", action="store_true", help="show less logs")
         parser.add_argument(
             "-b",
@@ -104,7 +104,7 @@ class BuildAwareCommand(Command):
     def get_build_environment(self, args: Args) -> BuildEnvironment:
         """Returns the handle to manage the build environment."""
 
-        return BuildEnvironment(args.project_dir, args.build_dir / "venv")
+        return BuildEnvironment(args.project_dir, args.build_dir / "venv", args.verbose)
 
     def get_project_interface(self, args: Args) -> ProjectInterface:
         """Returns the implementation that deals with project specific data such as build requirements and
@@ -224,8 +224,16 @@ class BuildAwareCommand(Command):
         return sp.call([str(kraken_cli)] + sys.argv[1:], env=env)
 
     def execute(self, args: Args) -> int | None:
+        if args.verbose >= 2:
+            level = logging.DEBUG
+        elif args.verbose >= 1:
+            level = logging.INFO
+        elif args.quiet:
+            level = logging.ERROR
+        else:
+            level = logging.WARNING
         logging.basicConfig(
-            level=logging.INFO if args.verbose else logging.ERROR if args.quiet else logging.WARNING,
+            level=level,
             format=f"{colored('%(levelname)-7s', 'magenta')} | {colored('%(name)-24s', 'blue')} | "
             f"{colored('%(message)s', 'cyan')}",
         )

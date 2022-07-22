@@ -1,0 +1,8 @@
+[[entries]]
+id = "ea897875-3637-45d6-b3e6-bcfdb872e2d1"
+type = "improvement"
+description = "Allow passing `-v` option multiple times to increase verbosity up to DEBUG (close #5)"
+author = "@NiklasRosenstein"
+issues = [
+    "https://github.com/kraken-build/kraken-cli/issues/5",
+]
