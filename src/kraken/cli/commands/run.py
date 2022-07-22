@@ -42,7 +42,7 @@ class RunCommand(BuildGraphCommand):
                 print(colored("Error: no tasks were selected", "red"), file=sys.stderr)
                 return 1
             try:
-                context.execute(graph, args.verbose)
+                context.execute(graph, args.verbose > 0)
             except BuildError as exc:
                 print(colored("Error: %s" % (exc,), "red"), file=sys.stderr)
                 return 1
