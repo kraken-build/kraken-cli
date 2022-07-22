@@ -77,7 +77,7 @@ class BuildAwareCommand(Command):
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
-        parser.add_argument("-v", "--verbose", action="count", help="always show task output and logs")
+        parser.add_argument("-v", "--verbose", action="count", help="always show task output and logs", default=0)
         parser.add_argument("-q", "--quiet", action="store_true", help="show less logs")
         parser.add_argument(
             "-b",
