@@ -14,9 +14,11 @@ import sys
 from pathlib import Path
 from typing import Iterator, TextIO
 
+from packaging.requirements import Requirement
+
 from .inspect import get_environment_state_of_interpreter
 from .lockfile import Lockfile, LockfileMetadata
-from .requirements import RequirementSpec, parse_requirement
+from .requirements import RequirementSpec
 
 logger = logging.getLogger(__name__)
 
@@ -86,8 +88,8 @@ class BuildEnvironment:
         command = [str(sys.executable), "-m", "venv", str(self._path)]
         sp.check_call(command, env=env)
 
-        # Install keyring such that Pip can look up credetials in the system keychain.
-        command = self._get_pip_command() + ["keyring"]
+        # Install keyring such that Pip can look up credetials in the system keychain, and upgrade Pip.
+        command = self._get_pip_command() + ["--upgrade", "pip", "keyring"]
         with self._open_logfile_and_print_delta_on_error() as fp:
             sp.check_call(command, env=env, stdout=fp, stderr=sp.STDOUT)
 
@@ -201,22 +203,37 @@ class BuildEnvironment:
 
         # Collect only the package name and version for required packages.
         distributions = {}
-        stack = list(requirements.requirements)
-        while stack:
-            package_name = stack.pop(0).name.lower()
+        requirements_stack = list(requirements.requirements)
+
+        while requirements_stack:
+            package_req = requirements_stack.pop(0)
+            package_name = package_req.name.lower()
+
             if package_name in distributions:
                 continue
             if package_name not in env.distributions:
                 # NOTE (@NiklasRosenstein): We may be missing the package because it's a requirement that is only
                 #       installed under certain conditions (e.g. markers/extras).
                 continue
+
             dist = env.distributions[package_name]
+
+            # Pin the package version.
             distributions[package_name] = dist.version
-            stack += map(parse_requirement, dist.requirements)
+
+            # Filter the requirements of the distribution down to the ones required according to markers and the
+            # current package requirement's extras.
+            for req in map(Requirement, dist.requirements):
+                if isinstance(package_req, Requirement) and req.marker:
+                    satisfied = any(req.marker.evaluate({"extra": extra}) for extra in package_req.extras)
+                else:
+                    satisfied = True
+                if satisfied:
+                    requirements_stack.append(req)
 
         metadata = LockfileMetadata.new()
         metadata.kraken_cli_version = f"{env.kraken_cli_version} (instrumented by {metadata.kraken_cli_version})"
         metadata.python_version = f"{env.python_version} (instrumented by {env.python_version})"
 
-        extra_distributions = env.distributions.keys() - distributions.keys()
+        extra_distributions = env.distributions.keys() - distributions.keys() - {"pip"}
         return CalculateLockfileResult(Lockfile(metadata, requirements, distributions), extra_distributions)
