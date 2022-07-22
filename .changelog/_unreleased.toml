@@ -3,3 +3,9 @@ id = "172bc0e4-7f4c-4a50-ad13-fcc328dc92f9"
 type = "improvement"
 description = "Upgrade Pip immediately after creating virtual environment, alongside the `keyring` installation"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "93e9a40d-4fcf-4240-9e0c-a54a0d53a869"
+type = "improvement"
+description = "Improve lockfile calculation to include only distributions that are actually required; evaluating requirement markers to filter out any distribution requirements that are not required. This leaves `pip` as an \"unrequired extra distribution\" in many cases, which is expected, so we remove it from the extra distributions set."
+author = "@NiklasRosenstein"
