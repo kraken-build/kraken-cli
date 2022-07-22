@@ -6,3 +6,18 @@ author = "@NiklasRosenstein"
 issues = [
     "https://github.com/kraken-build/kraken-cli/issues/5",
 ]
+
+[[entries]]
+id = "2bd36bde-77e9-422d-bc89-1e0ce027ae19"
+type = "improvement"
+description = "Adding `-v` now shows Pip install output, `-vv` and `-vvv` will add `-v` and `-vv` to Pip install respectively"
+author = "@NiklasRosenstein"
+
+[[entries]]
+id = "88921171-3f32-4f8e-a228-fa7733d7a3af"
+type = "feature"
+description = "Installing `keyring` into Build environment as first step to ensure subsequent `BuildEnvironment.install()` can look up credentials in the system keychain (close #7)"
+author = "@NiklasRosenstein"
+issues = [
+    "https://github.com/kraken-build/kraken-cli/issues/7",
+]

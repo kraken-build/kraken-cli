@@ -30,16 +30,18 @@ class CalculateLockfileResult:
 class BuildEnvironment:
     """Represents a separate Python environment that we install build time requirements into."""
 
-    def __init__(self, project_path: Path, path: Path) -> None:
+    def __init__(self, project_path: Path, path: Path, verbosity: int) -> None:
         """
         :param project_path: The directory that relative paths should be assumed relative to.
         :param path: The directory at which the environment should be located.
+        :param verbosity: 1 for showing Pip output, 2 for making Pip output verbose.
         """
 
         self._project_path = project_path
         self._path = path
         self._hash_file = path / ".hash"
         self._install_log_file = path / ".install-log"
+        self._verbosity = verbosity
 
     @property
     def path(self) -> Path:
@@ -84,6 +86,11 @@ class BuildEnvironment:
         command = [str(sys.executable), "-m", "venv", str(self._path)]
         sp.check_call(command, env=env)
 
+        # Install keyring such that Pip can look up credetials in the system keychain.
+        command = self._get_pip_command() + ["keyring"]
+        with self._open_logfile_and_print_delta_on_error() as fp:
+            sp.check_call(command, env=env, stdout=fp, stderr=sp.STDOUT)
+
     def remove(self) -> None:
         """Remove the virtual environment."""
 
@@ -118,11 +125,10 @@ class BuildEnvironment:
         :param upgrade: Pass the `--upgrade` flag to Pip.
         """
 
-        python = self.get_program("python")
-        command = [str(python), "-m", "pip", "install", "--no-input"] + requirements.to_args(self._project_path)
-        logger.info("%s", command)
+        command = self._get_pip_command() + requirements.to_args(self._project_path)
         if upgrade:
             command += ["--upgrade"]
+        logger.info("%s", command)
         with self._open_logfile_and_print_delta_on_error() as fp:
             sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
         self._install_pythonpath(requirements.pythonpath)
@@ -132,12 +138,21 @@ class BuildEnvironment:
 
         :param lockfile: The lockfile to install from."""
 
-        python = self.get_program("python")
-        command = [str(python), "-m", "pip", "install", "--no-input", "--upgrade"]
+        command = self._get_pip_command() + ["--upgrade"]
         command += lockfile.to_args(self._project_path)
+        logger.info("%s", command)
         with self._open_logfile_and_print_delta_on_error() as fp:
             sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
         self._install_pythonpath(lockfile.requirements.pythonpath)
+
+    def _get_pip_command(self) -> list[str]:
+        python = self.get_program("python")
+        command = [str(python), "-m", "pip", "install", "--no-input"]
+        if self._verbosity > 2:
+            command += ["-vv"]
+        elif self._verbosity > 1:
+            command += ["-v"]
+        return command
 
     def _install_pythonpath(self, pythonpath: list[str]) -> None:
         """Installs the given list of paths by placing a `.pth` file into the environment."""
@@ -153,6 +168,10 @@ class BuildEnvironment:
     def _open_logfile_and_print_delta_on_error(self) -> Iterator[TextIO]:
         """A context manager to open the environment log file and return it. If an error occurs inside the context
         manager, the delta (everything that was appended since the file was opened) will be printed to stderr."""
+
+        if self._verbosity > 0:
+            yield sys.stdout
+            return
 
         with self._install_log_file.open("a") as fp:
             print(f"\n[{datetime.datetime.utcnow()} UTC]", file=fp, flush=True)
