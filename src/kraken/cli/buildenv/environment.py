@@ -86,8 +86,8 @@ class BuildEnvironment:
         command = [str(sys.executable), "-m", "venv", str(self._path)]
         sp.check_call(command, env=env)
 
-        # Install keyring such that Pip can look up credetials in the system keychain.
-        command = self._get_pip_command() + ["keyring"]
+        # Install keyring such that Pip can look up credetials in the system keychain, and upgrade Pip.
+        command = self._get_pip_command() + ["--upgrade", "pip", "keyring"]
         with self._open_logfile_and_print_delta_on_error() as fp:
             sp.check_call(command, env=env, stdout=fp, stderr=sp.STDOUT)
 

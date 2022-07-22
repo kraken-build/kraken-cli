@@ -1,0 +1,5 @@
+[[entries]]
+id = "172bc0e4-7f4c-4a50-ad13-fcc328dc92f9"
+type = "improvement"
+description = "Upgrade Pip immediately after creating virtual environment, alongside the `keyring` installation"
+author = "@NiklasRosenstein"
