@@ -271,6 +271,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    Unreleased
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#027-2022-07-21" class="md-nav__link">
     0.2.7 (2022-07-21)
   </a>
@@ -424,6 +431,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    Unreleased
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#027-2022-07-21" class="md-nav__link">
     0.2.7 (2022-07-21)
   </a>
@@ -561,6 +575,19 @@
 
 
 <h1 id="changelog">Changelog</h1>
+<h2 id="unreleased">Unreleased</h2>
+<table><tr><th>Type</th><th>Description</th><th>PR</th><th>Issues</th><th>Author</th></tr>
+  <tr><td>Improvement</td><td>
+
+Allow passing `-v` option multiple times to increase verbosity up to DEBUG (close #5)</td><td></td><td><a href="https://github.com/kraken-build/kraken-cli/issues/5">5</a></td><td>@NiklasRosenstein</td></tr>
+  <tr><td>Improvement</td><td>
+
+Adding `-v` now shows Pip install output, `-vv` and `-vvv` will add `-v` and `-vv` to Pip install respectively</td><td></td><td></td><td>@NiklasRosenstein</td></tr>
+  <tr><td>Feature</td><td>
+
+Installing `keyring` into Build environment as first step to ensure subsequent `BuildEnvironment.install()` can look up credentials in the system keychain (close #7)</td><td></td><td><a href="https://github.com/kraken-build/kraken-cli/issues/7">7</a></td><td>@NiklasRosenstein</td></tr>
+</table>
+
 <h2 id="027-2022-07-21">0.2.7 (2022-07-21)</h2>
 <table><tr><th>Type</th><th>Description</th><th>PR</th><th>Issues</th><th>Author</th></tr>
   <tr><td>Fix</td><td>
