@@ -11,7 +11,7 @@ def _main() -> None:
 
     from . import __version__
     from .commands.env import EnvInfoCommand, EnvInstallCommand, EnvLockCommand, EnvRemoveCommand, EnvUpgradeCommand
-    from .commands.inspection import DescribeCommand, LsCommand, QueryCommand
+    from .commands.inspection import DescribeCommand, LsCommand, QueryCommand, VizCommand
     from .commands.run import RunCommand
 
     env = Group("manage the build environment")
@@ -31,6 +31,7 @@ def _main() -> None:
     app.add_command("query", QueryCommand())
     app.add_command("describe", DescribeCommand())
     app.add_command("env", env)
+    app.add_command("viz", VizCommand())
     sys.exit(app.run())
 
 

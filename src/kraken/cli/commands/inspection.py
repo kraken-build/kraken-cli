@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import io
 import sys
 from typing import Any
 
 from kraken.core import Context, GroupTask, Property, Task, TaskGraph
 from kraken.core.executor import COLORS_BY_STATUS, TaskStatus, get_task_status
+from nr.io.graphviz.render import render_to_browser
+from nr.io.graphviz.writer import GraphvizWriter
 from termcolor import colored
 
 from .base import BuildGraphCommand, print
@@ -143,3 +146,49 @@ class DescribeCommand(BuildGraphCommand):
                 prop: Property[Any] = getattr(task, key)
                 print("".ljust(4), colored(key, attrs=["reverse"]), f'= {colored(prop.get_or("<unset>"), "blue")}')
             print()
+
+
+class VizCommand(BuildGraphCommand):
+    """GraphViz for the task graph"""
+
+    class Args(BuildGraphCommand.Args):
+        default: bool
+        trim: bool
+        show: bool
+
+    def init_parser(self, parser: argparse.ArgumentParser) -> None:
+        super().init_parser(parser)
+        parser.add_argument("-d", "--default", action="store_true", help="select default tasks")
+        parser.add_argument("-t", "--trim", action="store_true", help="trim the task graph")
+        parser.add_argument("-s", "--show", action="store_true", help="show the graph in the browser (requires `dot`)")
+
+    def resolve_tasks(self, args: Args, context: Context) -> list[Task]:  # type: ignore[override]
+        if args.default:
+            return context.resolve_tasks(None)
+        elif args.targets:
+            return super().resolve_tasks(args, context)
+        else:
+            return [task for project in context.iter_projects() for task in project.tasks().values()]
+
+    def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> None:  # type: ignore[override]
+        if args.trim:
+            graph.trim()
+
+        buffer = io.StringIO()
+        writer = GraphvizWriter(buffer if args.show else sys.stdout)
+        writer.digraph(fontname="monospace")
+        writer.set_node_style(style="filled", shape="box")
+
+        for task in graph.execution_order():
+            writer.node(
+                task.path,
+                color="green" if task.default else "gray20",
+                fillcolor="dodgerblue1" if isinstance(task, GroupTask) else "aquamarine",
+            )
+            for predecessor in graph.get_predecessors(task):
+                writer.edge(predecessor.path, task.path)
+
+        writer.end()
+
+        if args.show:
+            render_to_browser(buffer.getvalue())

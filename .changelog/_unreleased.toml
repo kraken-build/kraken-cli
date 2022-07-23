@@ -1,0 +1,5 @@
+[[entries]]
+id = "b4dc39f4-8486-4200-a2d3-254ad343603e"
+type = "feature"
+description = "add `kraken viz` command which produces GraphViz code of the build graph, and allows you to immediately view it in the browser with the `-s,--show` option"
+author = "@NiklasRosenstein"

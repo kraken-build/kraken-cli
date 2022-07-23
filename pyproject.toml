@@ -27,6 +27,7 @@ packaging = ">=20.0"
 setuptools = ">=33.0.0"
 termcolor = "^1.1.0"
 types-termcolor = "^1.1.5"
+"nr.io.graphviz" = "^0.1.0"
 "nr.python.environment" = "^0.1.2"
 
 [tool.poetry.dev-dependencies]
