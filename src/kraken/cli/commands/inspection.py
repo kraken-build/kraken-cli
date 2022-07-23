@@ -136,7 +136,7 @@ class DescribeCommand(BuildGraphCommand):
                 print(
                     "".ljust(4),
                     colored(rel.other_task.path, attrs=["bold"]),
-                    f"before={rel.before}, strict={rel.strict}",
+                    f"before={rel.inverse}, strict={rel.strict}",
                 )
             print("  Properties".ljust(30), len(type(task).__schema__))
             for key in type(task).__schema__:
