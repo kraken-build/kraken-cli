@@ -345,10 +345,10 @@
 <li>manage a separate Python virtual environment with build time dependencies to ensure consistent, repeatable builds (see <a href="buildenv/">Build Environment</a>)</li>
 </ul>
 <h2 id="synopsis">Synopsis</h2>
-<div class="highlight"><span class="filename">$ kraken --help</span><pre><span></span><code>usage: kraken [-h] [--version] [{run,fmt,lint,build,test,ls,query,describe,env}] ...
+<div class="highlight"><span class="filename">$ kraken --help</span><pre><span></span><code>usage: kraken [-h] [--version] [{run,fmt,lint,build,test,ls,query,describe,env,viz}] ...
 
 positional arguments:
-  {run,fmt,lint,build,test,ls,query,describe,env}
+  {run,fmt,lint,build,test,ls,query,describe,env,viz}
                                                   the subcommand to execute
   ...                                             arguments for the subcommand
 
@@ -366,6 +366,7 @@ subcommands:
   query                                           perform queries on the build graph
   describe                                        describe one or more tasks in detail
   env                                             manage the build environment
+  viz                                             GraphViz for the task graph
 </code></pre></div>
 <div class="highlight"><span class="filename">$ kraken env --help</span><pre><span></span><code>usage: kraken env [-h] [{info,install,upgrade,lock,remove}] ...
 
