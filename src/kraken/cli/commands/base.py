@@ -258,7 +258,7 @@ class BuildGraphCommand(BuildAwareCommand):
         parser.add_argument("--resume", action="store_true", help="load previous build state")
         parser.add_argument(
             "--restart",
-            choice=("all",),
+            choices=("all",),
             help="load previous build state, but discard existing results (requires --resume)",
         )
 

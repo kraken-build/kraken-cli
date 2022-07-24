@@ -1,0 +1,5 @@
+[[entries]]
+id = "6a02f471-5987-49e2-a39a-bbf682b6da03"
+type = "fix"
+description = "fix wrong use of `add_argument(choices)` argument (was written as `choice`)"
+author = "@NiklasRosenstein"
