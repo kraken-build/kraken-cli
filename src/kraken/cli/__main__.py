@@ -11,7 +11,7 @@ def _main() -> None:
 
     from . import __version__
     from .commands.env import EnvInfoCommand, EnvInstallCommand, EnvLockCommand, EnvRemoveCommand, EnvUpgradeCommand
-    from .commands.inspection import DescribeCommand, LsCommand, QueryCommand, VizCommand
+    from .commands.query import DescribeCommand, IsUpToDateCommand, LsCommand, VizCommand
     from .commands.run import RunCommand
 
     env = Group("manage the build environment")
@@ -21,17 +21,16 @@ def _main() -> None:
     env.add_command("lock", EnvLockCommand())
     env.add_command("remove", EnvRemoveCommand())
 
+    query = Group("run queries against on the task graph")
+    query.add_command("ls", LsCommand())
+    query.add_command("up-to-date", IsUpToDateCommand())
+    query.add_command("describe", DescribeCommand())
+    query.add_command("viz", VizCommand())
+
     app = CliApp("kraken", f"cli: {__version__}, core: {core.__version__}", features=[])
     app.add_command("run", RunCommand())
-    app.add_command("fmt", RunCommand("fmt"))
-    app.add_command("lint", RunCommand("lint"))
-    app.add_command("build", RunCommand("build"))
-    app.add_command("test", RunCommand("test"))
-    app.add_command("ls", LsCommand())
-    app.add_command("query", QueryCommand())
-    app.add_command("describe", DescribeCommand())
     app.add_command("env", env)
-    app.add_command("viz", VizCommand())
+    app.add_command("q", query)
     sys.exit(app.run())
 
 

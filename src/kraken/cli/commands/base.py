@@ -24,6 +24,7 @@ from kraken.cli.buildenv.project import DefaultProjectImpl, ProjectInterface
 
 DEFAULT_BUILD_DIR = Path("build")
 DEFAULT_PROJECT_DIR = Path(".")
+logger = logging.getLogger(__name__)
 print = partial(builtins.print, flush=True)
 
 
@@ -306,7 +307,7 @@ def load_state(state_dir: Path, restart: bool) -> tuple[Context, TaskGraph] | tu
     state_files = list(state_dir.iterdir()) if state_dir.is_dir() else []
     if not state_files:
         return None, None
-    print(colored(f"Note: Resuming from {len(state_files)} build state(s)", "blue"))
+    logger.info("Note: Resuming from %d build state(s)", len(state_files))
     context: Context | None = None
     graph: TaskGraph | None = None
     for state_file in sorted(state_files):
@@ -330,4 +331,4 @@ def save_state(state_dir: Path, graph: TaskGraph) -> None:
     for file in state_dir.iterdir():
         if file != state_file:
             file.unlink()
-    print(colored(f"Note: Saving build state to {state_file}", "blue"))
+    logger.info('Note: Saving build state to "%s"', state_file)

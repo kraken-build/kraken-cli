@@ -15,7 +15,7 @@ from .base import BuildGraphCommand, print
 
 
 class LsCommand(BuildGraphCommand):
-    """list targets in the build"""
+    """list all tasks"""
 
     class Args(BuildGraphCommand.Args):
         default: bool
@@ -72,8 +72,8 @@ class LsCommand(BuildGraphCommand):
         print()
 
 
-class QueryCommand(BuildGraphCommand):
-    """perform queries on the build graph"""
+class IsUpToDateCommand(BuildGraphCommand):
+    """ask if the specified targets are up to date."""
 
     class Args(BuildGraphCommand.Args):
         is_up_to_date: bool
@@ -82,51 +82,46 @@ class QueryCommand(BuildGraphCommand):
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
         parser.add_argument("--legend", action="store_true", help="print out a legend along with the query result")
-        parser.add_argument("--is-up-to-date", action="store_true", help="query if the selected task(s) are up to date")
 
     def execute(self, args: BuildGraphCommand.Args) -> int | None:  # type: ignore[override]
         args.quiet = True
         return super().execute(args)
 
     def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> int | None:  # type: ignore
-        if args.is_up_to_date:
-            tasks = list(graph.tasks(targets_only=True))
-            print(f"querying status of {len(tasks)} task(s)")
+        tasks = list(graph.tasks(targets_only=True))
+        print(f"querying status of {len(tasks)} task(s)")
+        print()
+
+        need_to_run = 0
+        up_to_date = 0
+        for task in graph.execution_order():
+            if task not in tasks:
+                continue
+            status = task.prepare() or TaskStatus.pending()
+            print(" ", task.path, colored(status.type.name, COLORS_BY_RESULT[status.type]))
+            if status.is_skipped() or status.is_up_to_date():
+                up_to_date += 1
+            else:
+                need_to_run += 1
+
+        print()
+        print(colored(f"{up_to_date} task(s) are up to date, need to run {need_to_run} task(s)", attrs=["bold"]))
+
+        if args.legend:
             print()
+            print("legend:")
+            help_text = {
+                TaskStatusType.PENDING: "the task is pending execution",
+                TaskStatusType.SKIPPED: "the task can be skipped",
+                TaskStatusType.UP_TO_DATE: "the task is up to date",
+            }
+            for status_type, help in help_text.items():
+                print(colored(status_type.name.rjust(12), COLORS_BY_RESULT[status_type]) + ":", help)
 
-            need_to_run = 0
-            up_to_date = 0
-            for task in graph.execution_order():
-                if task not in tasks:
-                    continue
-                status = task.prepare() or TaskStatus.pending()
-                print(" ", task.path, colored(status.type.name, COLORS_BY_RESULT[status.type]))
-                if status.is_skipped() or status.is_up_to_date():
-                    up_to_date += 1
-                else:
-                    need_to_run += 1
-
-            print()
-            print(colored(f"{up_to_date} task(s) are up to date, need to run {need_to_run} task(s)", attrs=["bold"]))
-
-            if args.legend:
-                print()
-                print("legend:")
-                help_text = {
-                    TaskStatusType.PENDING: "the task is pending execution",
-                    TaskStatusType.SKIPPED: "the task can be skipped",
-                    TaskStatusType.UP_TO_DATE: "the task is up to date",
-                }
-                for status_type, help in help_text.items():
-                    print(colored(status_type.name.rjust(12), COLORS_BY_RESULT[status_type]) + ":", help)
-
-            exit_code = 0 if need_to_run == 0 else 1
-            print()
-            print("exit code:", exit_code)
-            sys.exit(exit_code)
-
-        else:
-            self.get_parser().error("missing query")
+        exit_code = 0 if need_to_run == 0 else 1
+        print()
+        print("exit code:", exit_code)
+        sys.exit(exit_code)
 
 
 class DescribeCommand(BuildGraphCommand):
