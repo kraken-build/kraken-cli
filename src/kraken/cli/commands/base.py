@@ -107,7 +107,7 @@ class BuildAwareCommand(Command):
     def get_build_environment(self, args: Args) -> BuildEnvironment:
         """Returns the handle to manage the build environment."""
 
-        return BuildEnvironment(args.project_dir, args.build_dir / "venv", args.verbose)
+        return BuildEnvironment(args.project_dir, args.build_dir / ".kraken" / "venv", args.verbose)
 
     def get_project_interface(self, args: Args) -> ProjectInterface:
         """Returns the implementation that deals with project specific data such as build requirements and

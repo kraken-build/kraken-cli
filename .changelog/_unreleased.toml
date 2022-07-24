@@ -1,0 +1,5 @@
+[[entries]]
+id = "b3e11c5c-4c0a-45fd-9d24-b00d5937d56c"
+type = "improvement"
+description = "build environment is now created at `build/.kraken/venv` instead of `build/venv`"
+author = "@NiklasRosenstein"
