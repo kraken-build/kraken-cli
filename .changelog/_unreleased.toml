@@ -1,0 +1,5 @@
+[[entries]]
+id = "3531f77e-d247-4ca4-a69f-9467da3a36b4"
+type = "fix"
+description = "fix mistake in code path when `--restart` or `--resume` option was used"
+author = "@NiklasRosenstein"

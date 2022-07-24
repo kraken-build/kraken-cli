@@ -286,7 +286,7 @@ class BuildGraphCommand(BuildAwareCommand):
 
         if args.resume or args.restart:
             context, graph = load_state(state_dir)
-            if args.restart:
+            if graph and args.restart:
                 graph.discard_statuses()
 
         if context is None:
@@ -308,7 +308,7 @@ class BuildGraphCommand(BuildAwareCommand):
         raise NotImplementedError
 
 
-def load_state(state_dir: Path, restart: bool) -> tuple[Context, TaskGraph] | tuple[None, None]:
+def load_state(state_dir: Path) -> tuple[Context, TaskGraph] | tuple[None, None]:
     state_files = list(state_dir.iterdir()) if state_dir.is_dir() else []
     if not state_files:
         return None, None
@@ -323,8 +323,6 @@ def load_state(state_dir: Path, restart: bool) -> tuple[Context, TaskGraph] | tu
         else:
             graph.update_statuses_from(new_graph)
     assert context is not None and graph is not None
-    if restart:
-        graph.discard_statuses()
     return context, graph
 
 
