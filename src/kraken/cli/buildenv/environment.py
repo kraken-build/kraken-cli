@@ -12,13 +12,13 @@ import shutil
 import subprocess as sp
 import sys
 from pathlib import Path
-from typing import Iterator, TextIO
+from typing import Iterator, Sequence, TextIO
 
 from packaging.requirements import Requirement
 
 from .inspect import get_environment_state_of_interpreter
 from .lockfile import Lockfile, LockfileMetadata
-from .requirements import RequirementSpec
+from .requirements import LocalRequirement, RequirementSpec
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +146,14 @@ class BuildEnvironment:
         with self._open_logfile_and_print_delta_on_error() as fp:
             sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
         self._install_pythonpath(lockfile.requirements.pythonpath)
+
+    def update_local_requirements(self, requirements: Sequence[LocalRequirement]) -> None:
+        """Used to update local requirements. Does not change the stored environment hash."""
+
+        command = self._get_pip_command() + [str(self._project_path / x.path) for x in requirements]
+        logger.info("%s", command)
+        with self._open_logfile_and_print_delta_on_error() as fp:
+            sp.check_call(command, stdout=fp, stderr=sp.STDOUT)
 
     def _get_pip_command(self) -> list[str]:
         python = self.get_program("python")

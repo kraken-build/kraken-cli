@@ -21,6 +21,7 @@ from kraken.cli import __version__
 from kraken.cli.buildenv.environment import BuildEnvironment
 from kraken.cli.buildenv.lockfile import Lockfile
 from kraken.cli.buildenv.project import DefaultProjectImpl, ProjectInterface
+from kraken.cli.buildenv.requirements import LocalRequirement
 
 DEFAULT_BUILD_DIR = Path("build")
 DEFAULT_PROJECT_DIR = Path(".")
@@ -199,6 +200,14 @@ class BuildAwareCommand(Command):
         if install:
             build_env.install_requirements(requirements, upgrade)
             build_env.hash = requirements.to_hash()
+            return
+
+        local_requirements = [r for r in requirements.requirements if isinstance(r, LocalRequirement)]
+        if os.getenv("KRAKEN_ALWAYS_UPDATE_LOCAL_REQUIREMENTS") == "1" and local_requirements:
+            print(
+                colored("Upgrading local requirements due to KRAKEN_ALWAYS_UPDATE_LOCAL_REQUIREMENTS=1", "blue")
+            )
+            build_env.update_local_requirements(local_requirements)
 
     def dispatch_to_build_environment(self, args: Args) -> int:
         """Dispatch to the build environment."""

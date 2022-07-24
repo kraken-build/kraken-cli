@@ -1,0 +1,5 @@
+[[entries]]
+id = "1d4fede1-866a-4341-b80e-1e085f4f3036"
+type = "feature"
+description = "Kraken CLI now understands the `KRAKEN_ALWAYS_UPDATE_LOCAL_REQUIREMENTS` environment variable; if set to `1` it will always run an update on local requirements in the projects requirement spec"
+author = "@NiklasRosenstein"

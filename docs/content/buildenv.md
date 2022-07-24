@@ -47,6 +47,7 @@ The following environment variables alter the behaviour of Kraken CLI with respe
 | --------- | ----------- |
 | `KRAKEN_MANAGED` | If set to `1`, the Python environment from which the `kraken` command is run will be considered the build environment. No requirements will be installed and no subprocess is used to dispatch the build to a separate Python environment. |
 | `KRAKEN_DEVELOP` | If set to `1`, Kraken CLI must currently be installed in develop mode and will instruct it to install the same Kraken CLI from your local file system into the build environment instead of from PyPI. |
+| `KRAKEN_ALWAYS_UPDATE_LOCAL_REQUIREMENTS` | If set to `1`, Kraken CLI will always run an update on local requirements in the project's requirement spec, even if the build environment already exists and appears to be up to date. |
 
 > Note: Currently, the source directory of the kraken-cli project is derived by following the symlink of the
 > `kraken/cli/__init__.py` file and then looking four directories up (cli, kraken, src, kraken-cli project root).
