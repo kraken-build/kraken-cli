@@ -204,9 +204,7 @@ class BuildAwareCommand(Command):
 
         local_requirements = [r for r in requirements.requirements if isinstance(r, LocalRequirement)]
         if os.getenv("KRAKEN_ALWAYS_UPDATE_LOCAL_REQUIREMENTS") == "1" and local_requirements:
-            print(
-                colored("Upgrading local requirements due to KRAKEN_ALWAYS_UPDATE_LOCAL_REQUIREMENTS=1", "blue")
-            )
+            print(colored("Upgrading local requirements due to KRAKEN_ALWAYS_UPDATE_LOCAL_REQUIREMENTS=1", "blue"))
             build_env.update_local_requirements(local_requirements)
 
     def dispatch_to_build_environment(self, args: Args) -> int:
