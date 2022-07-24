@@ -5,8 +5,8 @@ import io
 import sys
 from typing import Any
 
-from kraken.core import Context, GroupTask, Property, Task, TaskGraph
-from kraken.core.executor import COLORS_BY_STATUS, TaskStatus, get_task_status
+from kraken.core import Context, GroupTask, Property, Task, TaskGraph, TaskStatus, TaskStatusType
+from kraken.core.executor import COLORS_BY_RESULT
 from nr.io.graphviz.render import render_to_browser
 from nr.io.graphviz.writer import GraphvizWriter
 from termcolor import colored
@@ -88,9 +88,9 @@ class QueryCommand(BuildGraphCommand):
             for task in graph.execution_order():
                 if task not in tasks:
                     continue
-                status = get_task_status(task)
-                print(" ", task.path, colored(status.name, COLORS_BY_STATUS[status]))
-                if status in (TaskStatus.SKIPPABLE, TaskStatus.UP_TO_DATE):
+                status = task.prepare() or TaskStatus.pending()
+                print(" ", task.path, colored(status.type.name, COLORS_BY_RESULT[status.type]))
+                if status.is_skipped() or status.is_up_to_date():
                     up_to_date += 1
                 else:
                     need_to_run += 1
@@ -102,13 +102,12 @@ class QueryCommand(BuildGraphCommand):
                 print()
                 print("legend:")
                 help_text = {
-                    TaskStatus.SKIPPABLE: "the task reports that it can and will be skipped",
-                    TaskStatus.UP_TO_DATE: "the task reports that it is up to date",
-                    TaskStatus.OUTDATED: "the task reports that it is outdated",
-                    TaskStatus.QUEUED: "the task needs to run always or it cannot determine its up to date status",
+                    TaskStatusType.PENDING: "the task is pending execution",
+                    TaskStatusType.SKIPPED: "the task can be skipped",
+                    TaskStatusType.UP_TO_DATE: "the task is up to date",
                 }
-                for status in TaskStatus:
-                    print(colored(status.name.rjust(12), COLORS_BY_STATUS[status]) + ":", help_text[status])
+                for status_type, help in help_text.items():
+                    print(colored(status_type.name.rjust(12), COLORS_BY_RESULT[status_type]) + ":", help)
 
             exit_code = 0 if need_to_run == 0 else 1
             print()
