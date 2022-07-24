@@ -1,0 +1,5 @@
+[[entries]]
+id = "73e1e715-636e-49b9-8ca2-5d75e9880468"
+type = "feature"
+description = "add `-a,--all` option to `kraken q viz`"
+author = "@NiklasRosenstein"

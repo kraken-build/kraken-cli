@@ -162,12 +162,12 @@ class VizCommand(BuildGraphCommand):
     """GraphViz for the task graph"""
 
     class Args(BuildGraphCommand.Args):
-        default: bool
-        trim: bool
+        all: bool
         show: bool
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
+        parser.add_argument("-a", "--all", action="store_true", help="include all tasks in the graph")
         parser.add_argument("-s", "--show", action="store_true", help="show the graph in the browser (requires `dot`)")
 
     def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> None:  # type: ignore[override]
@@ -176,7 +176,7 @@ class VizCommand(BuildGraphCommand):
         writer.digraph(fontname="monospace")
         writer.set_node_style(style="filled", shape="box")
 
-        for task in graph.execution_order():
+        for task in graph.tasks(all=args.all):
             writer.node(
                 task.path,
                 color="green" if task.default else "gray20",
