@@ -30,35 +30,46 @@ class LsCommand(BuildGraphCommand):
             help="trim non-default tasks (only without selected targets)",
         )
 
-    def resolve_tasks(self, args: Args, context: Context) -> list[Task]:  # type: ignore
-        tasks: list[Task] = []
-        if args.default:
-            if args.targets:
-                self.get_parser().error("cannot combine -d,--default with target selection")
-            for project in context.iter_projects():
-                for task in project.tasks().values():
-                    if task.default:
-                        tasks.append(task)
-            return tasks
-        if args.targets:
-            return context.resolve_tasks(args.targets)
-        for project in context.iter_projects():
-            tasks += project.tasks().values()
-        return tasks
-
     def execute_with_graph(self, context: Context, graph: TaskGraph, args: BuildGraphCommand.Args) -> None:
         if len(graph) == 0:
             print("no tasks.", file=sys.stderr)
             sys.exit(1)
 
-        longest_name = max(map(len, (task.path for task in graph.tasks()))) + 1
-        print(colored("D " + "Task".ljust(longest_name + 1) + "Type", attrs=["bold"]))
-        for task in graph.execution_order():
-            print(
-                colored("●", "cyan" if task.default else "grey"),
-                task.path.ljust(longest_name),
-                type(task).__module__ + "." + type(task).__name__,
-            )
+        required_tasks = set(graph.tasks(targets_only=True))
+        longest_name = max(map(len, (t.path for t in graph.tasks(all=True)))) + 1
+
+        print()
+        print(colored("Tasks", "blue", attrs=["bold", "underline"]))
+        print()
+
+        def _print_task(task: Task) -> None:
+            line = [task.path.ljust(longest_name)]
+            if task in required_tasks:
+                line[0] = colored(line[0], "green")
+            if task.default:
+                line[0] = colored(line[0], attrs=["bold"])
+            status = graph.get_status(task)
+            if status is not None:
+                line.append(f"[{colored(status.type.name, COLORS_BY_RESULT[status.type])}]")
+            if task.description:
+                line.append(task.description)
+            print("  " + " ".join(line))
+
+        for task in graph.tasks(all=True):
+            if isinstance(task, GroupTask):
+                continue
+            _print_task(task)
+
+        print()
+        print(colored("Groups", "blue", attrs=["bold", "underline"]))
+        print()
+
+        for task in graph.tasks(all=True):
+            if not isinstance(task, GroupTask):
+                continue
+            _print_task(task)
+
+        print()
 
 
 class QueryCommand(BuildGraphCommand):
@@ -79,7 +90,7 @@ class QueryCommand(BuildGraphCommand):
 
     def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> int | None:  # type: ignore
         if args.is_up_to_date:
-            tasks = list(graph.tasks(required_only=True))
+            tasks = list(graph.tasks(targets_only=True))
             print(f"querying status of {len(tasks)} task(s)")
             print()
 
@@ -128,22 +139,27 @@ class DescribeCommand(BuildGraphCommand):
 
         for task in tasks:
             print("Group" if isinstance(task, GroupTask) else "Task", colored(task.path, attrs=["bold", "underline"]))
-            print("  Type".ljust(30), type(task).__module__ + "." + type(task).__name__)
-            print("  File".ljust(30), colored(sys.modules[type(task).__module__].__file__ or "???", "cyan"))
-            print("  Default".ljust(30), task.default)
-            print("  Capture".ljust(30), task.capture)
+            print("  Type:", type(task).__module__ + "." + type(task).__name__)
+            print("  Type defined in:", colored(sys.modules[type(task).__module__].__file__ or "???", "cyan"))
+            print("  Default:", task.default)
+            print("  Capture:", task.capture)
             rels = list(task.get_relationships())
-            print("  Relationships".ljust(30), len(rels))
+            print(colored("  Relationships", attrs=["bold"]), f"({len(rels)})")
             for rel in rels:
                 print(
                     "".ljust(4),
-                    colored(rel.other_task.path, attrs=["bold"]),
+                    colored(rel.other_task.path, "blue"),
                     f"before={rel.inverse}, strict={rel.strict}",
                 )
-            print("  Properties".ljust(30), len(type(task).__schema__))
+            print("  " + colored("Properties", attrs=["bold"]) + f" ({len(type(task).__schema__)})")
+            longest_property_name = max(map(len, type(task).__schema__.keys())) if type(task).__schema__ else 0
             for key in type(task).__schema__:
                 prop: Property[Any] = getattr(task, key)
-                print("".ljust(4), colored(key, attrs=["reverse"]), f'= {colored(prop.get_or("<unset>"), "blue")}')
+                print(
+                    "".ljust(4),
+                    (key + ":").ljust(longest_property_name + 1),
+                    f'{colored(prop.get_or("<unset>"), "blue")}',
+                )
             print()
 
 
@@ -157,22 +173,9 @@ class VizCommand(BuildGraphCommand):
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
-        parser.add_argument("-d", "--default", action="store_true", help="select default tasks")
-        parser.add_argument("-t", "--trim", action="store_true", help="trim the task graph")
         parser.add_argument("-s", "--show", action="store_true", help="show the graph in the browser (requires `dot`)")
 
-    def resolve_tasks(self, args: Args, context: Context) -> list[Task]:  # type: ignore[override]
-        if args.default:
-            return context.resolve_tasks(None)
-        elif args.targets:
-            return super().resolve_tasks(args, context)
-        else:
-            return [task for project in context.iter_projects() for task in project.tasks().values()]
-
     def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> None:  # type: ignore[override]
-        if args.trim:
-            graph.trim()
-
         buffer = io.StringIO()
         writer = GraphvizWriter(buffer if args.show else sys.stdout)
         writer.digraph(fontname="monospace")

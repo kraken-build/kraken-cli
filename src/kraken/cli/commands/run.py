@@ -45,7 +45,6 @@ class RunCommand(BuildGraphCommand):
         if args.skip_build:
             print(colored("Skipped build due to %s flag" % (colored("-s,--skip-build", attrs=["bold"]),), "blue"))
         else:
-            graph.trim()
             if not graph:
                 if args.allow_no_tasks:
                     print(colored("Note: no tasks were selected (--allow-no-tasks)", "blue"), file=sys.stderr)

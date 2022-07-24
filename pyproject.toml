@@ -22,13 +22,14 @@ keywords = []
 [tool.poetry.dependencies]
 python = "^3.7"
 "slap.core.cli" = "^0.3.1"
-kraken-core = "^0.4.0"
+kraken-core = "^0.5.0"
 packaging = ">=20.0"
 setuptools = ">=33.0.0"
 termcolor = "^1.1.0"
 types-termcolor = "^1.1.5"
 "nr.io.graphviz" = "^0.1.0"
 "nr.python.environment" = "^0.1.2"
+dill = "^0.3.5.1"
 
 [tool.poetry.dev-dependencies]
 black = "*"

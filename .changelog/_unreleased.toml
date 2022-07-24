@@ -1,0 +1,14 @@
+[[entries]]
+id = "c4c4647f-7e53-4d75-8e45-89a336c62e94"
+type = "feature"
+description = "preview of resumable builds, added `--resume` and `--restart` option to build graph aware commands"
+author = "@NiklasRosenstein"
+issues = [
+    "https://github.com/kraken-build/kraken-cli/issues/11",
+]
+
+[[entries]]
+id = "f410dd5b-5ed8-4c80-8bab-669b80fee797"
+type = "improvement"
+description = "compatibility with `kraken-core ^0.5.0` API"
+author = "@NiklasRosenstein"

@@ -7,10 +7,12 @@ import os
 import shlex
 import subprocess as sp
 import sys
+import uuid
 from functools import partial
 from pathlib import Path
 from typing import Any, cast
 
+import dill  # type: ignore[import]
 from kraken.core import Context, Task, TaskGraph
 from slap.core.cli import Command
 from termcolor import colored
@@ -246,10 +248,18 @@ class BuildGraphCommand(BuildAwareCommand):
     class Args(BuildAwareCommand.Args):
         file: Path | None
         targets: list[str]
+        resume: bool
+        restart: bool
 
     def init_parser(self, parser: argparse.ArgumentParser) -> None:
         super().init_parser(parser)
         parser.add_argument("targets", metavar="target", nargs="*", help="one or more target to build")
+        parser.add_argument("--resume", action="store_true", help="load previous build state")
+        parser.add_argument(
+            "--restart",
+            action="store_true",
+            help="load previous build state, but discard existing results (requires --resume)",
+        )
 
     def resolve_tasks(self, args: Args, context: Context) -> list[Task]:
         return context.resolve_tasks(args.targets or None)
@@ -266,13 +276,58 @@ class BuildGraphCommand(BuildAwareCommand):
         project = self.get_project_interface(args)
         sys.path += [str((args.project_dir / path)) for path in project.get_requirement_spec().pythonpath]
 
-        context = Context(args.build_dir)
-        context.load_project(None, Path.cwd())
-        context.finalize()
-        targets = self.resolve_tasks(args, context)
-        graph = TaskGraph(targets)
+        context: Context | None = None
+        graph: TaskGraph | None = None
+        state_dir = args.build_dir / ".kraken" / "build-state"
 
-        return self.execute_with_graph(context, graph, args)
+        if args.resume or args.restart:
+            context, graph = load_state(state_dir, args.restart)
+
+        if context is None:
+            context = Context(args.build_dir)
+            context.load_project(None, Path.cwd())
+            context.finalize()
+            graph = TaskGraph(context)
+
+        assert graph is not None
+        targets = self.resolve_tasks(args, context)
+        graph.set_targets(targets)
+
+        try:
+            return self.execute_with_graph(context, graph, args)
+        finally:
+            save_state(state_dir, graph)
 
     def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> int | None:
         raise NotImplementedError
+
+
+def load_state(state_dir: Path, restart: bool) -> tuple[Context, TaskGraph] | tuple[None, None]:
+    state_files = list(state_dir.iterdir()) if state_dir.is_dir() else []
+    if not state_files:
+        return None, None
+    print(colored(f"Note: Resuming from {len(state_files)} build state(s)", "blue"))
+    context: Context | None = None
+    graph: TaskGraph | None = None
+    for state_file in sorted(state_files):
+        with state_file.open("rb") as fp:
+            new_graph: TaskGraph = dill.load(fp)
+        if context is None or graph is None:
+            context, graph = new_graph.context, new_graph
+        else:
+            graph.update_statuses_from(new_graph)
+    assert context is not None and graph is not None
+    if restart:
+        graph.discard_statuses()
+    return context, graph
+
+
+def save_state(state_dir: Path, graph: TaskGraph) -> None:
+    state_file = state_dir / f"state-{str(uuid.uuid4())[:7]}.dill"
+    state_dir.mkdir(parents=True, exist_ok=True)
+    with state_file.open("wb") as fp:
+        dill.dump(graph, fp)
+    for file in state_dir.iterdir():
+        if file != state_file:
+            file.unlink()
+    print(colored(f"Note: Saving build state to {state_file}", "blue"))
