@@ -1,0 +1,5 @@
+[[entries]]
+id = "046f522e-375d-4135-92c2-4f053cd7c110"
+type = "improvement"
+description = "`kraken run` now prints a build summary table at the end"
+author = "@NiklasRosenstein"

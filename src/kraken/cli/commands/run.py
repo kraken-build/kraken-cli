@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import builtins
 import sys
+from functools import partial
 
 from kraken.core import BuildError, Context, Task, TaskGraph
+from kraken.core.executor import COLORS_BY_RESULT
 from termcolor import colored
 
 from .base import BuildGraphCommand, print
@@ -34,6 +37,9 @@ class RunCommand(BuildGraphCommand):
         return super().resolve_tasks(args, context)
 
     def execute_with_graph(self, context: Context, graph: TaskGraph, args: Args) -> int | None:  # type: ignore
+        print = partial(builtins.print, flush=True)
+        status_code = 0
+
         if args.skip_build:
             print(colored("Skipped build due to %s flag" % (colored("-s,--skip-build", attrs=["bold"]),), "blue"))
         else:
@@ -44,6 +50,18 @@ class RunCommand(BuildGraphCommand):
             try:
                 context.execute(graph, args.verbose > 0)
             except BuildError as exc:
-                print(colored("Error: %s" % (exc,), "red"), file=sys.stderr)
-                return 1
-        return 0
+                print()
+                print(colored("Error: %s" % (exc,), "red"), file=sys.stderr, flush=True)
+                status_code = 1
+
+            print()
+            print(colored("Build summary", "blue", attrs=["underline", "bold"]))
+            print()
+            tasks1 = {task: graph.get_status(task) for task in graph.tasks()}
+            tasks = {task: status for task, status in tasks1.items() if status is not None}
+            longest_path = max(map(len, (t.path for t in tasks)))
+            for task, status in sorted(tasks.items(), key=lambda t: t[0].path):
+                print(task.path.ljust(longest_path), colored(status.type.name, COLORS_BY_RESULT[status.type]))
+            print()
+
+        return status_code
