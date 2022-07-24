@@ -1,0 +1,5 @@
+[[entries]]
+id = "d11c2054-8b77-4d96-a0b1-3867783a51ed"
+type = "improvement"
+description = "Specifying `--resume` without an existing build state will now error"
+author = "@NiklasRosenstein"

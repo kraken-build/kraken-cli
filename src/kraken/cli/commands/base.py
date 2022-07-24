@@ -291,8 +291,11 @@ class BuildGraphCommand(BuildAwareCommand):
         graph: TaskGraph | None = None
         state_dir = args.build_dir / ".kraken" / "build-state"
 
-        if args.resume or args.restart:
+        if args.resume:
             context, graph = load_state(state_dir)
+            if not graph:
+                print(colored("Error: Cannot --resume with no build state", "red"))
+                return 1
             if graph and args.restart:
                 graph.discard_statuses()
 
