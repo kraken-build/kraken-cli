@@ -258,7 +258,7 @@ class BuildGraphCommand(BuildAwareCommand):
         parser.add_argument("--resume", action="store_true", help="load previous build state")
         parser.add_argument(
             "--restart",
-            action="store_true",
+            choice=("all",),
             help="load previous build state, but discard existing results (requires --resume)",
         )
 
@@ -267,6 +267,9 @@ class BuildGraphCommand(BuildAwareCommand):
 
     def execute(self, args: Args) -> int | None:  # type: ignore[override]
         super().execute(args)
+
+        if args.restart and not args.resume:
+            self.get_parser().error("the --restart option requires the --resume flag")
 
         if not self.in_build_environment():
             return self.dispatch_to_build_environment(args)
@@ -282,7 +285,9 @@ class BuildGraphCommand(BuildAwareCommand):
         state_dir = args.build_dir / ".kraken" / "build-state"
 
         if args.resume or args.restart:
-            context, graph = load_state(state_dir, args.restart)
+            context, graph = load_state(state_dir)
+            if args.restart:
+                graph.discard_statuses()
 
         if context is None:
             context = Context(args.build_dir)

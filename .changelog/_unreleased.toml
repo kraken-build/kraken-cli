@@ -3,3 +3,9 @@ id = "73e1e715-636e-49b9-8ca2-5d75e9880468"
 type = "feature"
 description = "add `-a,--all` option to `kraken q viz`"
 author = "@NiklasRosenstein"
+
+[[entries]]
+id = "10f91b84-6d14-40c2-a6b8-884c1518dfc1"
+type = "improvement"
+description = "`--restart` option now requires an argument (currently just `all`), and can now only be used if the `--resume` option is also specified as was always indicated by the option help text"
+author = "@NiklasRosenstein"
